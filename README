@@ -1,0 +1,95 @@
+libudev-compatible interface for devd
+=====================================
+
+Intended to work with xorg-server and libinput
+
+Installation:
+
+./autogen.sh
+./configure
+make && sudo make install
+
+remove all InputDevice from "ServerLayout" section of xorg.conf
+
+For gsoc2014 evdev-enabled kernels add following lines to xorg.conf
+
+<<< CUT
+
+# Use the libinput driver for all event devices
+Section "InputClass"
+	Identifier	"evdev"
+	Driver		"libinput"
+#	Driver		"evdev"
+	MatchDevicePath	"/dev/input/event*"
+EndSection
+
+# Explicitly set xkb_rules to evdev for keyboards
+Section "InputClass"
+	Identifier	"evdev keyboard"
+	MatchIsKeyboard	"on"
+	MatchDevicePath	"/dev/input/event*"
+        Option		"XkbRules" "evdev"
+EndSection
+
+<<<CUT
+
+For stock kernels add following lines to xorg.conf
+
+<<<CUT
+
+# Use the libinput driver for all event devices
+Section "InputClass"
+	Identifier	"evdev"
+	MatchDevicePath	"/dev/input/event*"
+	Driver		"evdev"
+EndSection
+
+Section "InputClass"
+	Identifier	"kbdmux"
+	MatchDevicePath	"/dev/kbdmux*"
+	Driver		"kbd"
+EndSection
+
+Section "InputClass"
+	Identifier	"System mouse"
+	MatchDevicePath	"/dev/sysmouse"
+	Driver		"mouse"
+EndSection
+
+Section "InputClass"
+	Identifier	"PS/2 mouse"
+	MatchDevicePath	"/dev/psm*"
+	Driver		"mouse"
+EndSection
+
+Section "InputClass"
+	Identifier	"USB mouses"
+	MatchDevicePath	"/dev/ums*"
+	Driver		"mouse"
+EndSection
+
+Section "InputClass"
+	Identifier	"Joystick"
+	MatchDevicePath "/dev/joy*"
+	Driver		"mouse"
+EndSection
+
+Section "InputClass"
+	Identifier	"Apple touchpad"
+	MatchDevicePath	"/dev/atp*"
+	Driver		"mouse"
+EndSection
+
+Section "InputClass"
+	Identifier	"Wellspring touchpad"
+	MatchDevicePath	"/dev/wsp*"
+	Driver		"mouse"
+EndSection
+
+Section "InputClass"
+	Identifier	"eGalax touchscreen"
+	MatchDevicePath	"/dev/uep*"
+	Driver		"mouse"
+EndSection
+
+<<<CUT
