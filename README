@@ -5,11 +5,26 @@ Intended to work with xorg-server and libinput
 
 Installation:
 
+1. install devel/libevdev port. In case of gsoc2014 evdev-enabled kernels it
+   should be patched to use system evdev headers instead of webcamd-supplied
+
+2. Build and install libudev-devd
+
+cd libudev-devd
 ./autogen.sh
 ./configure
 make && sudo make install
 
-remove all InputDevice from "ServerLayout" section of xorg.conf
+3. recompile x11-servers/xorg-server with DEVD port option disabled and
+following configure args added: --enable-config-udev=yes \
+    --disable-config-udev-kms --disable-systemd-logind
+
+If you are going to use /dev/kbdmux0 as keyboard input device patch[1] should
+be applied to config/udev.c file in xorg distribution
+
+4. Apply changes to xorg.conf
+
+Remove all InputDevice from "ServerLayout" section of xorg.conf
 
 For gsoc2014 evdev-enabled kernels add following lines to xorg.conf
 
@@ -92,4 +107,62 @@ Section "InputClass"
 	Driver		"mouse"
 EndSection
 
+<<<CUT
+
+5. Fetch and install libinput port by Jan Kokemuller???
+
+For gsoc2014 evdev-enabled kernels only:
+
+fetch https://github.com/wulf7/libinput/archive/master.tar.gz
+tar zxvf master.tar.gz
+cd libinput-master
+./autogen.sh
+make && sudo make install
+
+6. Fetch and install xf86-input-libinput
+
+For gsoc2014 evdev-enabled kernels only:
+
+fetch http://xorg.freedesktop.org/releases/individual/driver/xf86-input-libinput-0.14.0.tar.bz2
+..
+..
+..
+
+7. Appendix
+
+[1] config/udev.c patch. Just place content between two <<<CUTs as
+/usr/ports/x11-servers/xorg-server/files/patch-config_udev.c file
+
+<<<CUT
++--- config/udev.c.orig	2015-05-21 17:23:54.000000000 +0300
+++++ config/udev.c	2015-10-13 17:37:05.063290000 +0300
++@@ -29,6 +29,7 @@
++ 
++ #include <libudev.h>
++ #include <ctype.h>
+++#include <fcntl.h>
++ #include <unistd.h>
++ 
++ #include "input.h"
++@@ -188,6 +189,20 @@ device_added(struct udev_device *udev_de
++         attrs.product = strdup(name);
++     input_options = input_option_new(input_options, "name", name);
++     input_options = input_option_new(input_options, "path", path);
+++    if(strstr(path, "kbdmux") != NULL) {
+++        /*
+++         * Don't pass "device" option if the keyboard is already attached
+++         * to the console (ie. open() fails). This would activate a special
+++         * logic in xf86-input-keyboard. Prevent any other attached to console
+++         * keyboards being processed. There can be only one such device.
+++         */
+++        int fd = open(path, O_RDONLY);
+++        if (fd > -1) {
+++            close(fd);
+++            input_options = input_option_new(input_options, "device", path);
+++        }
+++    }
+++    else
++     input_options = input_option_new(input_options, "device", path);
++     input_options = input_option_new(input_options, "major", itoa(major(devnum)));
++     input_options = input_option_new(input_options, "minor", itoa(minor(devnum)));
 <<<CUT
