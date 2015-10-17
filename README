@@ -46,6 +46,15 @@ Section "InputClass"
         Option		"XkbRules" "evdev"
 EndSection
 
+# Disable kbdmux to not receive keyboard events twice
+Section "InputClass"
+	Identifier	"evdev disable kbdmux"
+	MatchIsKeyboard	"on"
+	MatchProduct	"System keyboard multiplexer"
+	MatchDevicePath	"/dev/input/event*"
+	Option		"Ignore" "true"
+EndSection
+
 <<<CUT
 
 For stock kernels add following lines to xorg.conf
@@ -104,7 +113,7 @@ EndSection
 Section "InputClass"
 	Identifier	"eGalax touchscreen"
 	MatchDevicePath	"/dev/uep*"
-	Driver		"mouse"
+	Driver		"egalax"
 EndSection
 
 <<<CUT
