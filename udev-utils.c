@@ -316,7 +316,7 @@ set_parent(struct udev_device *ud)
 {
         struct udev_device *parent;
         struct udev *udev;
-	char devname[DEV_PATH_MAX], mib[32], buf[1024];
+	char devname[DEV_PATH_MAX], mib[32], pnpinfo[1024];
 	char name[80], product[80], parentname[80];
 	const char *sysname, *unit, *vendorstr, *prodstr, *devicestr;
 	size_t len, buflen, vendorlen, prodlen, devicelen;
@@ -337,8 +337,8 @@ set_parent(struct udev_device *ud)
 	*(strchrnul(name, ',')) = '\0';	/* strip name */
 
 	snprintf(mib, sizeof(mib), "dev.%s.%s.%%pnpinfo", devname, unit);
-	len = sizeof(product);
-	if (sysctlbyname(mib, product, &len, NULL, 0) < 0)
+	len = sizeof(pnpinfo);
+	if (sysctlbyname(mib, pnpinfo, &len, NULL, 0) < 0)
 		return;
 
 	snprintf(mib, sizeof(mib), "dev.%s.%s.%%parent", devname, unit);
@@ -346,9 +346,9 @@ set_parent(struct udev_device *ud)
 	if (sysctlbyname(mib, parentname, &len, NULL, 0) < 0)
 		return;
 
-	vendorstr = get_kern_prop_value(buf, "vendor", &vendorlen);
-	prodstr = get_kern_prop_value(buf, "product", &prodlen);
-	devicestr = get_kern_prop_value(buf, "device", &devicelen);
+	vendorstr = get_kern_prop_value(pnpinfo, "vendor", &vendorlen);
+	prodstr = get_kern_prop_value(pnpinfo, "product", &prodlen);
+	devicestr = get_kern_prop_value(pnpinfo, "device", &devicelen);
 	if (prodstr != NULL && vendorstr != NULL) {
 		/* XXX: should parent be compared to uhub* to detect usb? */
 		vendor = strtol(vendorstr, NULL, 0);
@@ -367,7 +367,7 @@ set_parent(struct udev_device *ud)
 		prod = 0;
 		bus = BUS_VIRTUAL;
 	}
-	snprintf(product, sizeof(buf), "%x/%x/%x/0", bus, vendor, prod);
+	snprintf(product, sizeof(product), "%x/%x/%x/0", bus, vendor, prod);
 	parent = create_xorg_parent(ud, sysname, name, product);
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
