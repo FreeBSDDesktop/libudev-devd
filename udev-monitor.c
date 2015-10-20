@@ -45,7 +45,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#define	DEVD_SOCK_PATH	"/var/run/devd.pipe"
+#define	DEVD_SOCK_PATH		"/var/run/devd.pipe"
+#define	DEVD_RECONNECT_INTERVAL	1000	/* reconnect after 1 second */
 
 #define	DEVD_EVENT_ATTACH	'+'
 #define	DEVD_EVENT_DETACH	'-'
@@ -56,7 +57,6 @@ struct udev_monitor {
 	_Atomic(int) refcount;
 	int fds[2];
 	int kq;
-	int devd_fd;
 	struct udev_filter_head filters;
 	struct udev *udev;
 	pthread_t thread;
@@ -145,14 +145,44 @@ parse_devd_message(char *msg, char *syspath, size_t syspathlen)
 	return (flags);
 }
 
+/* Opens devd socket and set read kevent on success or timer kevent on failure */
+static int
+devd_connect(int kq)
+{
+	int devd_fd;
+	struct kevent ke;
+
+	devd_fd = socket_connect(DEVD_SOCK_PATH);
+
+	if (devd_fd >= 0) {
+		EV_SET(&ke, devd_fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+		if (kevent(kq, &ke, 1, NULL, 0, NULL) < 0) {
+			close(devd_fd);
+			devd_fd = -1;
+		}
+	}
+
+	/* Set respawn timer */
+	if (devd_fd < 0) {
+		EV_SET(&ke, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT,
+		    0, DEVD_RECONNECT_INTERVAL, 0);
+		if (kevent(kq, &ke, 1, NULL, 0, NULL) < 0)
+			devd_fd = -1;
+	}
+
+	return (devd_fd);
+}
+
 static void *
 udev_monitor_thread(void *args)
 {
 	struct udev_monitor *um = args;
 	uint32_t flags;
 	char ev[1024], syspath[DEV_PATH_MAX];
-	int ret;
+	int devd_fd, ret;
 	struct kevent ke;
+
+	devd_fd = devd_connect(um->kq);
 
 	for (;;) {
 		ret = kevent(um->kq, NULL, 0, &ke, 1, NULL);
@@ -161,10 +191,26 @@ udev_monitor_thread(void *args)
 		if (ret < 1)
 			break;
 
-		if (ke.filter == EVFILT_USER || ke.flags & EV_EOF)
+		/* edev_monitor is finishing */
+		if (ke.filter == EVFILT_USER)
 			break;
-		if (socket_readline(um->devd_fd, ev, sizeof(ev)) < 0)
-			break;
+
+		/* connection respawn timer expired */
+		if (ke.filter == EVFILT_TIMER) {
+			devd_fd = devd_connect(um->kq);
+			continue;
+		}
+
+		/* XXX: assert() should be placed here */
+		if (ke.filter != EVFILT_READ)
+			continue;
+
+		if (ke.flags & EV_EOF ||
+		    socket_readline(devd_fd, ev, sizeof(ev)) < 0) {
+			close(devd_fd);
+			devd_fd = devd_connect(um->kq);
+			continue;
+		}
 
 		flags = parse_devd_message(ev, syspath, sizeof(syspath));
 
@@ -173,6 +219,9 @@ udev_monitor_thread(void *args)
 				udev_monitor_send_device(um, syspath, flags);
 		}
 	}
+
+	if (devd_fd >= 0)
+		close(devd_fd);
 
 	return (NULL);
 }
@@ -196,7 +245,6 @@ udev_monitor_new_from_netlink(struct udev *udev, const char *name)
 	um->udev = udev;
 	_udev_ref(udev);
 	um->kq = -1;
-	um->devd_fd = -1;
 	atomic_init(&um->refcount, 1);
 	udev_filter_init(&um->filters);
 
@@ -218,18 +266,14 @@ udev_monitor_enable_receiving(struct udev_monitor *um)
 {
 
 	TRC("(%p)", um);
-	struct kevent ev[2];
-	um->devd_fd = socket_connect(DEVD_SOCK_PATH);
-	if (um->devd_fd < 0)
-		return (-1);
+	struct kevent ev;
 
 	um->kq = kqueue();
 	if (um->kq < 0)
 		goto error;
 
-	EV_SET(&ev[0], 1, EVFILT_USER, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, 0);
-	EV_SET(&ev[1], um->devd_fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
-	if (kevent(um->kq, ev, 2, NULL, 0, NULL) < 0)
+	EV_SET(&ev, 1, EVFILT_USER, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, 0);
+	if (kevent(um->kq, &ev, 1, NULL, 0, NULL) < 0)
 		goto error;
 
 	if (pthread_create(&um->thread, NULL, udev_monitor_thread, um) != 0) {
@@ -242,10 +286,6 @@ error:
 	if (um->kq >= 0) {
 		close (um->kq);
 		um->kq = -1;
-	}
-	if (um->devd_fd >= 0) {
-		close (um->devd_fd);
-		um->devd_fd = -1;
 	}
 	return (-1);
 }
@@ -277,7 +317,6 @@ udev_monitor_unref(struct udev_monitor *um)
 		EV_SET(&ev, 1, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0);
 		kevent(um->kq, &ev, 1, NULL, 0, NULL);
 		pthread_join(um->thread, NULL);
-		close(um->devd_fd);
 		close(um->kq);
 
 		close(um->fds[0]);
