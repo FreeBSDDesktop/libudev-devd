@@ -54,6 +54,11 @@
 #define BUS_I8042	0x11
 #endif
 
+#define	PS2_KEYBOARD_VENDOR		0x001
+#define	PS2_KEYBOARD_PRODUCT		0x001
+#define	PS2_MOUSE_VENDOR		0x002
+#define	PS2_MOUSE_GENERIC_PRODUCT	0x001
+
 void create_evdev_handler(struct udev_device *udev_device);
 void create_keyboard_handler(struct udev_device *udev_device);
 void create_mouse_handler(struct udev_device *udev_device);
@@ -359,8 +364,16 @@ set_parent(struct udev_device *ud)
 		prod = strtol(devicestr, NULL, 0);
 		bus = BUS_PCI;
 	} else if (strcmp(parentname, "atkbdc0") == 0) {
-		vendor = 0;
-		prod = 0;
+		if (strcmp(devname, "atkbd") == 0) {
+			vendor = PS2_KEYBOARD_VENDOR;
+			prod = PS2_KEYBOARD_PRODUCT;
+		} else if (strcmp(devname, "psm") == 0) {
+			vendor = PS2_MOUSE_VENDOR;
+			prod = PS2_MOUSE_GENERIC_PRODUCT;
+		} else {
+			vendor = 0;
+			prod = 0;
+		}
 		bus = BUS_I8042;
 	} else {
 		vendor = 0;
@@ -400,7 +413,7 @@ create_kbdmux_handler(struct udev_device *ud)
 	set_input_device_type(ud, IT_KEYBOARD);
 	sysname = udev_device_get_sysname(ud);
 	parent = create_xorg_parent(ud, sysname,
-	    "System keyboard multiplexor", "6/0/0/0");
+	    "System keyboard multiplexor", "6/1/1/0");
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 }
@@ -414,7 +427,7 @@ create_sysmouse_handler(struct udev_device *ud)
 	set_input_device_type(ud, IT_MOUSE);
 	sysname = udev_device_get_sysname(ud);
 	parent = create_xorg_parent(ud, sysname,
-	    "System mouse", "6/0/0/0");
+	    "System mouse", "6/2/1/0");
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 }
