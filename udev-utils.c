@@ -59,6 +59,8 @@
 #define	PS2_MOUSE_VENDOR		0x002
 #define	PS2_MOUSE_GENERIC_PRODUCT	0x001
 
+static const char *virtual_sysname = "uinput";
+
 void create_evdev_handler(struct udev_device *udev_device);
 void create_keyboard_handler(struct udev_device *udev_device);
 void create_mouse_handler(struct udev_device *udev_device);
@@ -220,7 +222,7 @@ create_evdev_handler(struct udev_device *ud)
 	struct libevdev *evdev;
 	struct udev_device *parent;
 	struct udev *udev;
-	const char *phys;
+	const char *sysname;
 	char name[80], product[80];
 	int fd, input_type = IT_NONE;
 	bool is_keyboard, opened = false;
@@ -284,9 +286,9 @@ create_evdev_handler(struct udev_device *ud)
 
 	set_input_device_type(ud, input_type);
 
-	phys = libevdev_get_phys(evdev);
-	if (phys == NULL)
-		goto bail_out;
+	sysname = libevdev_get_phys(evdev);
+	if (sysname == NULL)
+		sysname = virtual_sysname;
 
 	strlcpy(name, libevdev_get_name(evdev), sizeof(name));
 	*(strchrnul(name, ',')) = '\0';	/* strip name */
@@ -295,7 +297,7 @@ create_evdev_handler(struct udev_device *ud)
 	    libevdev_get_id_bustype(evdev), libevdev_get_id_vendor(evdev),
 	    libevdev_get_id_product(evdev), libevdev_get_id_version(evdev));
 
-	parent = create_xorg_parent(ud, phys, name, product, NULL);
+	parent = create_xorg_parent(ud, sysname, name, product, NULL);
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 
