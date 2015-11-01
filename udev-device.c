@@ -48,6 +48,7 @@ struct udev_device {
 	_Atomic(int) refcount;
 	uint32_t flags;
 	struct udev_list prop_list;
+	struct udev_list sysattr_list;
 	struct udev *udev;
 	struct udev_device *parent;
 	char syspath[];
@@ -108,6 +109,22 @@ udev_device_get_properties_list_entry(struct udev_device *ud)
 	return (udev_list_entry_get_first(udev_device_get_properties_list(ud)));
 }
 
+struct udev_list *
+udev_device_get_sysattr_list(struct udev_device *ud)
+{
+
+	return (&ud->sysattr_list);
+}
+
+LIBUDEV_EXPORT struct udev_list_entry *
+udev_device_get_sysattr_list_entry(struct udev_device *ud)
+{
+
+
+	TRC("(%p(%s))", ud, ud->syspath);
+	return (udev_list_entry_get_first(udev_device_get_sysattr_list(ud)));
+}
+
 LIBUDEV_EXPORT char const *
 udev_device_get_property_value(struct udev_device *ud, char const *property)
 {
@@ -131,8 +148,20 @@ udev_device_get_property_value(struct udev_device *ud, char const *property)
 LIBUDEV_EXPORT char const *
 udev_device_get_sysattr_value(struct udev_device *ud, const char *sysattr)
 {
+	char const *key, *value;
+	struct udev_list_entry *entry;
 
-	TRC("(%p(%s), %s)", ud, ud->syspath, sysattr);
+	udev_list_entry_foreach(entry, udev_list_entry_get_first(&ud->sysattr_list)) {
+		key = _udev_list_entry_get_name(entry);
+		if (!key)
+			continue;
+		if (strcmp(key, sysattr) == 0) {
+			value = _udev_list_entry_get_value(entry);
+			TRC("(%p(%s), %s) %s", ud, ud->syspath, sysattr, value);
+			return (value);
+		}
+	}
+	TRC("(%p(%s), %s) NULL", ud, ud->syspath, sysattr);
 	return (NULL);
 }
 

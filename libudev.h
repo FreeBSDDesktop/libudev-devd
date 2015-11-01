@@ -29,6 +29,8 @@ char const *udev_device_get_sysattr_value(
     struct udev_device *udev_device, const char *sysattr);
 struct udev_list_entry * udev_device_get_properties_list_entry(
     struct udev_device *udev_device);
+struct udev_list_entry * udev_device_get_sysattr_list_entry(
+    struct udev_device *udev_device);
 struct udev *udev_device_get_udev(struct udev_device *udev_device);
 const char *udev_device_get_syspath(struct udev_device *udev_device);
 const char *udev_device_get_sysname(struct udev_device *udev_device);

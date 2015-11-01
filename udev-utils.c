@@ -189,11 +189,11 @@ set_input_device_type(struct udev_device *ud, int input_type)
 
 static struct udev_device *
 create_xorg_parent(struct udev_device *ud, const char* sysname,
-    const char *name, const char *product)
+    const char *name, const char *product, const char *pnp_id)
 {
 	struct udev_device *parent;
 	struct udev *udev;
-	struct udev_list *ul_parent;
+	struct udev_list *props, *sysattrs;
 
 	/* xorg-server gets device name and vendor string from parent device */
 	udev = udev_device_get_udev(ud);
@@ -201,14 +201,17 @@ create_xorg_parent(struct udev_device *ud, const char* sysname,
 	if (parent == NULL)
 		return NULL;
 
-	ul_parent = udev_device_get_properties_list(parent);
-	udev_list_insert(ul_parent, "NAME", name);
+	props = udev_device_get_properties_list(parent);
+	sysattrs = udev_device_get_sysattr_list(parent);
+	udev_list_insert(props, "NAME", name);
+	udev_list_insert(sysattrs, "name", name);
 	if (product != NULL)
-		udev_list_insert(ul_parent, "PRODUCT", product);
+		udev_list_insert(props, "PRODUCT", product);
+	if (pnp_id != NULL)
+		udev_list_insert(sysattrs, "id", product);
 
 	return (parent);
 }
-
 
 #ifdef HAVE_LIBEVDEV
 void
@@ -292,7 +295,7 @@ create_evdev_handler(struct udev_device *ud)
 	    libevdev_get_id_bustype(evdev), libevdev_get_id_vendor(evdev),
 	    libevdev_get_id_product(evdev), libevdev_get_id_version(evdev));
 
-	parent = create_xorg_parent(ud, phys, name, product);
+	parent = create_xorg_parent(ud, phys, name, product, NULL);
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 
@@ -322,9 +325,9 @@ set_parent(struct udev_device *ud)
         struct udev_device *parent;
         struct udev *udev;
 	char devname[DEV_PATH_MAX], mib[32], pnpinfo[1024];
-	char name[80], product[80], parentname[80];
+	char name[80], product[80], parentname[80], *pnp_id;
 	const char *sysname, *unit, *vendorstr, *prodstr, *devicestr;
-	size_t len, buflen, vendorlen, prodlen, devicelen;
+	size_t len, buflen, vendorlen, prodlen, devicelen, pnplen;
 	uint32_t bus, prod, vendor;
 
 	sysname = udev_device_get_sysname(ud);
@@ -354,6 +357,11 @@ set_parent(struct udev_device *ud)
 	vendorstr = get_kern_prop_value(pnpinfo, "vendor", &vendorlen);
 	prodstr = get_kern_prop_value(pnpinfo, "product", &prodlen);
 	devicestr = get_kern_prop_value(pnpinfo, "device", &devicelen);
+	pnp_id = get_kern_prop_value(pnpinfo, "_HID", &pnplen);
+	if (pnp_id != NULL && pnplen == 4 && strncmp(pnp_id, "none", 4) == 0)
+		pnp_id = NULL;
+	if (pnp_id != NULL)
+		pnp_id[pnplen] = '\0';
 	if (prodstr != NULL && vendorstr != NULL) {
 		/* XXX: should parent be compared to uhub* to detect usb? */
 		vendor = strtol(vendorstr, NULL, 0);
@@ -381,7 +389,7 @@ set_parent(struct udev_device *ud)
 		bus = BUS_VIRTUAL;
 	}
 	snprintf(product, sizeof(product), "%x/%x/%x/0", bus, vendor, prod);
-	parent = create_xorg_parent(ud, sysname, name, product);
+	parent = create_xorg_parent(ud, sysname, name, product, pnp_id);
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 
@@ -413,7 +421,7 @@ create_kbdmux_handler(struct udev_device *ud)
 	set_input_device_type(ud, IT_KEYBOARD);
 	sysname = udev_device_get_sysname(ud);
 	parent = create_xorg_parent(ud, sysname,
-	    "System keyboard multiplexor", "6/1/1/0");
+	    "System keyboard multiplexor", "6/1/1/0", NULL);
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 }
@@ -427,7 +435,7 @@ create_sysmouse_handler(struct udev_device *ud)
 	set_input_device_type(ud, IT_MOUSE);
 	sysname = udev_device_get_sysname(ud);
 	parent = create_xorg_parent(ud, sysname,
-	    "System mouse", "6/2/1/0");
+	    "System mouse", "6/2/1/0", NULL);
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 }
