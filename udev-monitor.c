@@ -179,12 +179,13 @@ udev_monitor_thread(void *args)
 	struct udev_monitor *um = args;
 	uint32_t flags;
 	char ev[1024], syspath[DEV_PATH_MAX];
-	int devd_fd, ret;
+	int devd_fd = -1, ret;
 	struct kevent ke;
 
-	devd_fd = devd_connect(um->kq);
-
 	for (;;) {
+		if (devd_fd < 0)
+			devd_fd = devd_connect(um->kq);
+
 		ret = kevent(um->kq, NULL, 0, &ke, 1, NULL);
 		if (ret == -1 && errno == EINTR)
 			continue;
@@ -197,7 +198,6 @@ udev_monitor_thread(void *args)
 
 		/* connection respawn timer expired */
 		if (ke.filter == EVFILT_TIMER) {
-			devd_fd = devd_connect(um->kq);
 			continue;
 		}
 
@@ -208,7 +208,7 @@ udev_monitor_thread(void *args)
 		if (ke.flags & EV_EOF ||
 		    socket_readline(devd_fd, ev, sizeof(ev)) < 0) {
 			close(devd_fd);
-			devd_fd = devd_connect(um->kq);
+			devd_fd = -1;
 			continue;
 		}
 
