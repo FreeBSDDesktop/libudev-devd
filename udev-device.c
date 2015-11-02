@@ -50,6 +50,7 @@ struct udev_device {
 	struct udev_list prop_list;
 	struct udev_list sysattr_list;
 	struct udev_list tag_list;
+	struct udev_list devlink_list;
 	struct udev *udev;
 	struct udev_device *parent;
 	char syspath[];
@@ -147,9 +148,23 @@ LIBUDEV_EXPORT struct udev_list_entry *
 udev_device_get_tags_list_entry(struct udev_device *ud)
 {
 
-
 	TRC("(%p(%s))", ud, ud->syspath);
 	return (udev_list_entry_get_first(udev_device_get_tags_list(ud)));
+}
+
+struct udev_list *
+udev_device_get_devlinks_list(struct udev_device *ud)
+{
+
+	return (&ud->devlink_list);
+}
+
+LIBUDEV_EXPORT struct udev_list_entry *
+udev_device_get_devlinks_list_entry(struct udev_device *ud)
+{
+
+	TRC("(%p(%s))", ud, ud->syspath);
+	return (udev_list_entry_get_first(udev_device_get_devlinks_list(ud)));
 }
 
 LIBUDEV_EXPORT char const *
