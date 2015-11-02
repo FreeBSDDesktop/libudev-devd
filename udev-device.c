@@ -49,6 +49,7 @@ struct udev_device {
 	uint32_t flags;
 	struct udev_list prop_list;
 	struct udev_list sysattr_list;
+	struct udev_list tag_list;
 	struct udev *udev;
 	struct udev_device *parent;
 	char syspath[];
@@ -82,6 +83,16 @@ udev_device_new_from_devnum(struct udev *udev, char type, dev_t devnum)
 	TRC("(%d) -> %s", (int)devnum, devpath);
 	syspath = get_syspath_by_devpath(devpath);
 	return (udev_device_new_common(udev, syspath, UDF_ACTION_NONE));
+}
+
+LIBUDEV_EXPORT struct udev_device *
+udev_device_new_from_subsystem_sysname(struct udev *udev,
+   const char *subsystem, const char *sysname)
+{
+
+	TRC("(%s, %s)", subsystem, sysname);
+	UNIMPL();
+	return (NULL);
 }
 
 LIBUDEV_EXPORT char const *
@@ -123,6 +134,22 @@ udev_device_get_sysattr_list_entry(struct udev_device *ud)
 
 	TRC("(%p(%s))", ud, ud->syspath);
 	return (udev_list_entry_get_first(udev_device_get_sysattr_list(ud)));
+}
+
+struct udev_list *
+udev_device_get_tags_list(struct udev_device *ud)
+{
+
+	return (&ud->tag_list);
+}
+
+LIBUDEV_EXPORT struct udev_list_entry *
+udev_device_get_tags_list_entry(struct udev_device *ud)
+{
+
+
+	TRC("(%p(%s))", ud, ud->syspath);
+	return (udev_list_entry_get_first(udev_device_get_tags_list(ud)));
 }
 
 LIBUDEV_EXPORT char const *
@@ -191,6 +218,8 @@ udev_device_new_common(struct udev *udev, const char *syspath, uint32_t flags)
 	atomic_init(&ud->refcount, 1);
 	strcpy(ud->syspath, syspath);
 	udev_list_init(&ud->prop_list);
+	udev_list_init(&ud->sysattr_list);
+	udev_list_init(&ud->tag_list);
 	if ((flags & UDF_ACTION_MASK) != UDF_ACTION_REMOVE)
 		invoke_create_handler(ud);
 
@@ -239,6 +268,8 @@ udev_device_free(struct udev_device *ud)
 {
 
 	udev_list_free(&ud->prop_list);
+	udev_list_free(&ud->sysattr_list);
+	udev_list_free(&ud->tag_list);
 	if (!(ud->flags & ~UDF_IS_PARENT))
 		_udev_unref(ud->udev);
 	if (ud->parent != NULL)
@@ -260,6 +291,16 @@ udev_device_get_parent(struct udev_device *ud)
 {
 
 	TRC("(%p/%s) %p", ud, ud->syspath, ud->parent);
+	return (ud->parent);
+}
+
+LIBUDEV_EXPORT struct udev_device *
+udev_device_get_parent_with_subsystem_devtype(struct udev_device *ud,
+    const char *subsystem, const char *devtype)
+{
+
+	TRC("(%p/%s, %s, %s)", ud, ud->syspath, subsystem, devtype);
+	UNIMPL();
 	return (ud->parent);
 }
 
@@ -314,4 +355,48 @@ udev_device_get_devnum(struct udev_device *ud)
 		return (makedev(0, 0));
 
 	return (st.st_rdev);
+}
+
+LIBUDEV_EXPORT const char *
+udev_device_get_devtype(struct udev_device *ud)
+{
+
+	TRC("(%p) %s", ud, ud->syspath);
+	UNIMPL();
+	return (NULL);
+}
+
+LIBUDEV_EXPORT const char *
+udev_device_get_driver(struct udev_device *ud)
+{
+
+	TRC("(%p) %s", ud, ud->syspath);
+	UNIMPL();
+	return (NULL);
+}
+
+LIBUDEV_EXPORT const char *
+udev_device_get_sysnum(struct udev_device *ud)
+{
+
+	TRC("(%p) %s", ud, ud->syspath);
+	return (ud->syspath + syspathlen_wo_units(ud->syspath));
+}
+
+LIBUDEV_EXPORT unsigned long long int
+udev_device_get_seqnum(struct udev_device *ud)
+{
+
+	TRC("(%p) %s", ud, ud->syspath);
+	UNIMPL();
+	return (0);
+}
+
+LIBUDEV_EXPORT unsigned long long int
+udev_device_get_usec_since_initialized(struct udev_device *ud)
+{
+
+	TRC("(%p) %s", ud, ud->syspath);
+	UNIMPL();
+	return (0);
 }

@@ -100,6 +100,16 @@ udev_enumerate_add_match_subsystem(struct udev_enumerate *ue,
 }
 
 LIBUDEV_EXPORT int
+udev_enumerate_add_nomatch_subsystem(struct udev_enumerate *ue,
+    const char *subsystem)
+{
+
+	TRC("(%p, %s)", ue, subsystem);
+	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_SUBSYSTEM, 1,
+	    subsystem));
+}
+
+LIBUDEV_EXPORT int
 udev_enumerate_add_match_sysname(struct udev_enumerate *ue,
     const char *sysname)
 {
@@ -107,6 +117,56 @@ udev_enumerate_add_match_sysname(struct udev_enumerate *ue,
 	TRC("(%p, %s)", ue, sysname);
 	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_SYSNAME, 0,
 	     sysname));
+}
+
+LIBUDEV_EXPORT int
+udev_enumerate_add_match_sysattr(struct udev_enumerate *ue,
+    const char *sysattr, const char *value)
+{
+
+	TRC("(%p, %s, %s)", ue, sysattr, value);
+	UNIMPL();
+	return (0);
+}
+
+LIBUDEV_EXPORT int
+udev_enumerate_add_nomatch_sysattr(struct udev_enumerate *ue,
+    const char *sysattr, const char *value)
+{
+
+	TRC("(%p, %s, %s)", ue, sysattr, value);
+	UNIMPL();
+	return (0);
+}
+
+
+LIBUDEV_EXPORT int
+udev_enumerate_add_match_property(struct udev_enumerate *ue,
+    const char *property, const char *value)
+{
+
+	TRC("(%p, %s, %s)", ue, property, value);
+	UNIMPL();
+	return (0);
+}
+
+LIBUDEV_EXPORT int
+udev_enumerate_add_match_tag(struct udev_enumerate *ue, const char *tag)
+{
+
+	TRC("(%p, %s)", ue, tag);
+	UNIMPL();
+	return (0);
+}
+
+
+LIBUDEV_EXPORT int 
+udev_enumerate_add_match_is_initialized(struct udev_enumerate *ue)
+{
+
+	TRC("(%p)", ue);
+	UNIMPL();
+	return (0);
 }
 
 static int
@@ -155,4 +215,20 @@ udev_enumerate_get_list_entry(struct udev_enumerate *ue)
 
 	TRC("(%p)", ue);
 	return (udev_list_entry_get_first(&ue->dev_list));
+}
+
+LIBUDEV_EXPORT struct udev *
+udev_enumerate_get_udev(struct udev_enumerate *ue)
+{
+
+	TRC("(%p)", ue);
+	return (ue->udev);
+}
+
+LIBUDEV_EXPORT int
+udev_enumerate_add_syspath(struct udev_enumerate *ue, const char *syspath)
+{
+
+	TRC("(%p, %s)", ue, syspath);
+	return (udev_list_insert(&ue->dev_list, syspath, NULL));
 }

@@ -308,7 +308,7 @@ bail_out:
 }
 #endif
 
-static size_t
+size_t
 syspathlen_wo_units(const char *path) {
 	size_t len;
 

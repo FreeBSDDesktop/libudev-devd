@@ -35,6 +35,8 @@ do {									\
 #define	ERR(...)	LOG(0, __VA_ARGS__)
 #define	DBG(...)	LOG(1, __VA_ARGS__)
 
+#define	UNIMPL()	ERR("%s is unimplemented", __FUNCTION__)
+
 typedef int (* scan_cb_t) (const char *path, int type, void *args);
 
 struct scan_ctx {

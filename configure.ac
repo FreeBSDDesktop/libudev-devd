@@ -1,6 +1,6 @@
 AC_PREREQ([2.64])
 
-m4_define([libudev_version], [143])
+m4_define([libudev_version], [199])
 
 AC_INIT([libudev],[libudev_version],[https://github.com/wulf7/libudev-devd],[libudev])
 AC_CONFIG_HEADERS([config.h])
