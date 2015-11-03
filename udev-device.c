@@ -235,6 +235,7 @@ udev_device_new_common(struct udev *udev, const char *syspath, uint32_t flags)
 	udev_list_init(&ud->prop_list);
 	udev_list_init(&ud->sysattr_list);
 	udev_list_init(&ud->tag_list);
+	udev_list_init(&ud->devlink_list);
 	if ((flags & UDF_ACTION_MASK) != UDF_ACTION_REMOVE)
 		invoke_create_handler(ud);
 
@@ -285,6 +286,7 @@ udev_device_free(struct udev_device *ud)
 	udev_list_free(&ud->prop_list);
 	udev_list_free(&ud->sysattr_list);
 	udev_list_free(&ud->tag_list);
+	udev_list_free(&ud->devlink_list);
 	if (!(ud->flags & ~UDF_IS_PARENT))
 		_udev_unref(ud->udev);
 	if (ud->parent != NULL)
