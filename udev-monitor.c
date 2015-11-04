@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -181,6 +182,10 @@ udev_monitor_thread(void *args)
 	char ev[1024], syspath[DEV_PATH_MAX];
 	int devd_fd = -1, ret;
 	struct kevent ke;
+	sigset_t set;
+
+	sigfillset(&set);
+	pthread_sigmask(SIG_BLOCK, &set, NULL);
 
 	for (;;) {
 		if (devd_fd < 0)
