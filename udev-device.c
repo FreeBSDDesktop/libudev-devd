@@ -46,7 +46,10 @@
 
 struct udev_device {
 	_Atomic(int) refcount;
-	uint32_t flags;
+	struct {
+		unsigned int action : 2;
+		unsigned int is_parent : 1;
+	} flags;
 	struct udev_list prop_list;
 	struct udev_list sysattr_list;
 	struct udev_list tag_list;
@@ -61,7 +64,7 @@ udev_device_new_from_syspath(struct udev *udev, const char *syspath)
 {
 
 	TRC("(%s)", syspath);
-	return (udev_device_new_common(udev, syspath, UDF_ACTION_NONE));
+	return (udev_device_new_common(udev, syspath, UD_ACTION_NONE));
 }
 
 LIBUDEV_EXPORT struct udev_device *
@@ -83,7 +86,7 @@ udev_device_new_from_devnum(struct udev *udev, char type, dev_t devnum)
 
 	TRC("(%d) -> %s", (int)devnum, devpath);
 	syspath = get_syspath_by_devpath(devpath);
-	return (udev_device_new_common(udev, syspath, UDF_ACTION_NONE));
+	return (udev_device_new_common(udev, syspath, UD_ACTION_NONE));
 }
 
 LIBUDEV_EXPORT struct udev_device *
@@ -216,7 +219,7 @@ udev_device_get_udev(struct udev_device *ud)
 }
 
 struct udev_device *
-udev_device_new_common(struct udev *udev, const char *syspath, uint32_t flags)
+udev_device_new_common(struct udev *udev, const char *syspath, int action)
 {
 	struct udev_device *ud;
 
@@ -227,7 +230,7 @@ udev_device_new_common(struct udev *udev, const char *syspath, uint32_t flags)
 
 	_udev_ref(udev);
 	ud->udev = udev;
-	ud->flags = flags;
+	ud->flags.action = action;
 	ud->parent = NULL;
 	atomic_init(&ud->refcount, 1);
 	strcpy(ud->syspath, syspath);
@@ -235,7 +238,7 @@ udev_device_new_common(struct udev *udev, const char *syspath, uint32_t flags)
 	udev_list_init(&ud->sysattr_list);
 	udev_list_init(&ud->tag_list);
 	udev_list_init(&ud->devlink_list);
-	if ((flags & UDF_ACTION_MASK) != UDF_ACTION_REMOVE)
+	if (action != UD_ACTION_REMOVE)
 		invoke_create_handler(ud);
 
 	return (ud);
@@ -274,7 +277,7 @@ udev_device_ref(struct udev_device *ud)
 {
 	TRC("(%p/%s) %d", ud, ud->syspath, ud->refcount);
 
-	if (!(ud->flags & UDF_IS_PARENT))
+	if (!ud->flags.is_parent)
 		atomic_fetch_add(&ud->refcount, 1);
 	return (ud);
 }
@@ -298,7 +301,7 @@ udev_device_unref(struct udev_device *ud)
 {
 
 	TRC("(%p/%s) %d", ud, ud->syspath, ud->refcount);
-	if (ud->flags & UDF_IS_PARENT)
+	if (ud->flags.is_parent)
 		return;
 	if (atomic_fetch_sub(&ud->refcount, 1) == 1)
 		udev_device_free(ud);
@@ -326,7 +329,7 @@ void
 udev_device_set_parent(struct udev_device *ud, struct udev_device *parent)
 {
 
-	parent->flags |= UDF_IS_PARENT;
+	parent->flags.is_parent = 1;
 	ud->parent = parent;
 }
 
@@ -343,14 +346,14 @@ udev_device_get_action(struct udev_device *ud)
 {
 	const char *action;
 
-	switch(ud->flags & UDF_ACTION_MASK) {
-	case UDF_ACTION_NONE:
+	switch(ud->flags.action) {
+	case UD_ACTION_NONE:
 		action = "none";
 		break;
-	case UDF_ACTION_ADD:
+	case UD_ACTION_ADD:
 		action = "add";
 		break;
-	case UDF_ACTION_REMOVE:
+	case UD_ACTION_REMOVE:
 		action = "remove";
 		break;
 	default:

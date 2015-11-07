@@ -98,7 +98,7 @@ udev_monitor_receive_device(struct udev_monitor *um)
 
 static int
 udev_monitor_send_device(struct udev_monitor *um, const char *syspath,
-    uint32_t flags)
+    int action)
 {
 	struct udev_monitor_queue_entry *umqe;
 
@@ -106,7 +106,7 @@ udev_monitor_send_device(struct udev_monitor *um, const char *syspath,
 	if (umqe == NULL)
 		return (-1);
 
-	umqe->ud = udev_device_new_common(um->udev, syspath, flags);
+	umqe->ud = udev_device_new_common(um->udev, syspath, action);
 	if (umqe->ud == NULL) {
 		free(umqe);
 		return (-1);
@@ -128,25 +128,25 @@ udev_monitor_send_device(struct udev_monitor *um, const char *syspath,
 	return (0);
 }
 
-static uint32_t
+static int
 parse_devd_message(char *msg, char *syspath, size_t syspathlen)
 {
 	char devpath[DEV_PATH_MAX] = DEV_PATH_ROOT "/";
 	const char *type, *dev_name;
 	size_t type_len, dev_len, root_len;
-	int flags;
+	int action;
 
 	root_len = strlen(devpath);
-	flags = UDF_ACTION_NONE;
+	action = UD_ACTION_NONE;
 
 	switch (msg[0]) {
 #ifdef HAVE_DEVINFO_H
 	case DEVD_EVENT_ATTACH:
-		flags = UDF_ACTION_ADD;
+		action = UD_ACTION_ADD;
 		/* FALLTHROUGH */
 	case DEVD_EVENT_DETACH:
-		if (flags == UDF_ACTION_NONE)
-			flags = UDF_ACTION_REMOVE;
+		if (action == UD_ACTION_NONE)
+			action = UD_ACTION_REMOVE;
 		*(strchrnul(msg + 1, ' ')) = '\0';
 		strlcpy(syspath, msg + 1, syspathlen);
 		break;
@@ -164,10 +164,10 @@ parse_devd_message(char *msg, char *syspath, size_t syspathlen)
 			break;
 		if (type_len == 6 &&
 		    strncmp(type, "CREATE", type_len) == 0)
-			flags = UDF_ACTION_ADD;
+			action = UD_ACTION_ADD;
 		else if (type_len == 7 &&
 		    strncmp(type, "DESTROY", type_len) == 0)
-			flags = UDF_ACTION_REMOVE;
+			action = UD_ACTION_REMOVE;
 		else
 			break;
 		memcpy(devpath + root_len, dev_name, dev_len);
@@ -179,7 +179,7 @@ parse_devd_message(char *msg, char *syspath, size_t syspathlen)
 		break;
 	}
 
-	return (flags);
+	return (action);
 }
 
 /* Opens devd socket and set read kevent on success or timer kevent on failure */
@@ -214,9 +214,8 @@ static void *
 udev_monitor_thread(void *args)
 {
 	struct udev_monitor *um = args;
-	uint32_t flags;
 	char ev[1024], syspath[DEV_PATH_MAX];
-	int devd_fd = -1, ret;
+	int devd_fd = -1, ret, action;
 	struct kevent ke;
 	sigset_t set;
 
@@ -253,11 +252,11 @@ udev_monitor_thread(void *args)
 			continue;
 		}
 
-		flags = parse_devd_message(ev, syspath, sizeof(syspath));
+		action = parse_devd_message(ev, syspath, sizeof(syspath));
 
-		if (flags != UDF_ACTION_NONE) {
+		if (action != UD_ACTION_NONE) {
 			if (udev_filter_match(&um->filters, syspath))
-				udev_monitor_send_device(um, syspath, flags);
+				udev_monitor_send_device(um, syspath, action);
 		}
 	}
 
