@@ -35,6 +35,7 @@
 
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/queue.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -54,42 +55,77 @@
 #define	DEVD_EVENT_NOTICE	'!'
 #define	DEVD_EVENT_UNKNOWN	'?'
 
+STAILQ_HEAD(udev_monitor_queue_head, udev_monitor_queue_entry);
+struct udev_monitor_queue_entry {
+	struct udev_device *ud;
+	STAILQ_ENTRY(udev_monitor_queue_entry) next;
+};
+
 struct udev_monitor {
 	_Atomic(int) refcount;
 	int fds[2];
 	int kq;
 	struct udev_filter_head filters;
 	struct udev *udev;
+	struct udev_monitor_queue_head queue;
+	pthread_mutex_t mtx;
 	pthread_t thread;
 };
 
 LIBUDEV_EXPORT struct udev_device *
 udev_monitor_receive_device(struct udev_monitor *um)
 {
-	char buf[SYS_PATH_MAX + 1];
+	struct udev_monitor_queue_entry *umqe;
+	struct udev_device *ud;
+	char buf[1];
 
 	TRC("(%p)", um);
-	if (socket_readline(um->fds[0], buf, sizeof(buf)) < 0)
+	if (read(um->fds[0], buf, 1) < 0)
 		return (NULL);
 
-	TRC("(%p) %s", um, buf+1);
-	return (udev_device_new_common(um->udev, buf+1, buf[0]));
+	if (STAILQ_EMPTY(&um->queue))
+		return (NULL);
+
+	pthread_mutex_lock(&um->mtx);
+	umqe = STAILQ_FIRST(&um->queue);
+	STAILQ_REMOVE_HEAD(&um->queue, next);
+	pthread_mutex_unlock(&um->mtx);
+	ud = umqe->ud;
+	free(umqe);
+
+	return (ud);
 }
 
 static int
-udev_monitor_send_device(struct udev_monitor *udev_monitor,
-    const char *syspath, uint32_t flags)
+udev_monitor_send_device(struct udev_monitor *um, const char *syspath,
+    uint32_t flags)
 {
-	char buf[SYS_PATH_MAX + 1];
-	size_t len;
+	struct udev_monitor_queue_entry *umqe;
 
-	len = strlen(syspath);
-	if (len >= sizeof(buf) - 1)
+	umqe = calloc(1, sizeof(struct udev_monitor_queue_entry));
+	if (umqe == NULL)
 		return (-1);
 
-	buf[0] = (char)flags;
-	strlcpy(buf + 1, syspath, sizeof(buf) - 1);
-	return (write(udev_monitor->fds[1], buf, len + 2));
+	umqe->ud = udev_device_new_common(um->udev, syspath, flags);
+	if (umqe->ud == NULL) {
+		free(umqe);
+		return (-1);
+	}
+
+	pthread_mutex_lock(&um->mtx);
+	STAILQ_INSERT_TAIL(&um->queue, umqe, next);
+	pthread_mutex_unlock(&um->mtx);
+
+	if (write(um->fds[1], "*", 1) != 1) {
+		pthread_mutex_lock(&um->mtx);
+		STAILQ_REMOVE(&um->queue, umqe, udev_monitor_queue_entry, next);
+		pthread_mutex_unlock(&um->mtx);
+		udev_device_unref(umqe->ud);
+		free(umqe);
+		return (-1);
+	}
+
+	return (0);
 }
 
 static uint32_t
@@ -252,6 +288,8 @@ udev_monitor_new_from_netlink(struct udev *udev, const char *name)
 	um->kq = -1;
 	atomic_init(&um->refcount, 1);
 	udev_filter_init(&um->filters);
+	STAILQ_INIT(&um->queue);
+	pthread_mutex_init(&um->mtx, NULL);
 
 	return (um);
 }
@@ -312,6 +350,19 @@ udev_monitor_ref(struct udev_monitor *um)
 	return (um);
 }
 
+static void
+udev_monitor_queue_drop(struct udev_monitor_queue_head *umqh)
+{
+	struct udev_monitor_queue_entry *umqe;
+
+	while (!STAILQ_EMPTY(umqh)) {
+		umqe = STAILQ_FIRST(umqh);
+		STAILQ_REMOVE_HEAD(umqh, next);
+		udev_device_unref(umqe->ud);
+		free(umqe);
+	}
+}
+
 LIBUDEV_EXPORT void
 udev_monitor_unref(struct udev_monitor *um)
 {
@@ -327,6 +378,8 @@ udev_monitor_unref(struct udev_monitor *um)
 		close(um->fds[0]);
 		close(um->fds[1]);
 		udev_filter_free(&um->filters);
+		udev_monitor_queue_drop(&um->queue);
+		pthread_mutex_destroy(&um->mtx);
 		_udev_unref(um->udev);
 		free(um);
 	}
