@@ -199,7 +199,7 @@ create_xorg_parent(struct udev_device *ud, const char* sysname,
 
 	/* xorg-server gets device name and vendor string from parent device */
 	udev = udev_device_get_udev(ud);
-	parent = udev_device_new_common(udev, sysname, UDF_IS_PARENT);
+	parent = udev_device_new_common(udev, sysname, UDF_ACTION_NONE);
 	if (parent == NULL)
 		return NULL;
 

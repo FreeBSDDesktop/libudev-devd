@@ -225,10 +225,9 @@ udev_device_new_common(struct udev *udev, const char *syspath, uint32_t flags)
 	if (ud == NULL)
 		return (NULL);
 
+	_udev_ref(udev);
 	ud->udev = udev;
 	ud->flags = flags;
-	if (!(ud->flags & ~UDF_IS_PARENT))
-		_udev_ref(udev);
 	ud->parent = NULL;
 	atomic_init(&ud->refcount, 1);
 	strcpy(ud->syspath, syspath);
@@ -275,7 +274,8 @@ udev_device_ref(struct udev_device *ud)
 {
 	TRC("(%p/%s) %d", ud, ud->syspath, ud->refcount);
 
-	atomic_fetch_add(&ud->refcount, 1);
+	if (!(ud->flags & UDF_IS_PARENT))
+		atomic_fetch_add(&ud->refcount, 1);
 	return (ud);
 }
 
@@ -287,10 +287,9 @@ udev_device_free(struct udev_device *ud)
 	udev_list_free(&ud->sysattr_list);
 	udev_list_free(&ud->tag_list);
 	udev_list_free(&ud->devlink_list);
-	if (!(ud->flags & ~UDF_IS_PARENT))
-		_udev_unref(ud->udev);
 	if (ud->parent != NULL)
 		udev_device_free(ud->parent);
+	_udev_unref(ud->udev);
 	free(ud);
 }
 
@@ -299,6 +298,8 @@ udev_device_unref(struct udev_device *ud)
 {
 
 	TRC("(%p/%s) %d", ud, ud->syspath, ud->refcount);
+	if (ud->flags & UDF_IS_PARENT)
+		return;
 	if (atomic_fetch_sub(&ud->refcount, 1) == 1)
 		udev_device_free(ud);
 }
@@ -325,6 +326,7 @@ void
 udev_device_set_parent(struct udev_device *ud, struct udev_device *parent)
 {
 
+	parent->flags |= UDF_IS_PARENT;
 	ud->parent = parent;
 }
 
