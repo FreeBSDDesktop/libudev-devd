@@ -96,7 +96,7 @@ udev_enumerate_add_match_subsystem(struct udev_enumerate *ue,
 
 	TRC("(%p, %s)", ue, subsystem);
 	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_SUBSYSTEM, 0,
-	    subsystem));
+	    subsystem, NULL));
 }
 
 LIBUDEV_EXPORT int
@@ -106,7 +106,7 @@ udev_enumerate_add_nomatch_subsystem(struct udev_enumerate *ue,
 
 	TRC("(%p, %s)", ue, subsystem);
 	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_SUBSYSTEM, 1,
-	    subsystem));
+	    subsystem, NULL));
 }
 
 LIBUDEV_EXPORT int
@@ -116,7 +116,7 @@ udev_enumerate_add_match_sysname(struct udev_enumerate *ue,
 
 	TRC("(%p, %s)", ue, sysname);
 	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_SYSNAME, 0,
-	     sysname));
+	     sysname, NULL));
 }
 
 LIBUDEV_EXPORT int

@@ -42,6 +42,7 @@ struct udev_filter_entry {
 	int type;
 	int neg;
 	STAILQ_ENTRY(udev_filter_entry) next;
+	char *value;
 	char expr[];
 };
 
@@ -54,18 +55,27 @@ udev_filter_init(struct udev_filter_head *ufh)
 
 int
 udev_filter_add(struct udev_filter_head *ufh, int type, int neg,
-    const char *expr)
+    const char *expr, const char *value)
 {
 	struct udev_filter_entry *ufe;
+	size_t exprlen, valuelen;
+
+	exprlen = strlen(expr) + 1;
+	valuelen = value == NULL ? 0 : strlen(value) + 1;
 
 	ufe = calloc
-	    (1, offsetof(struct udev_filter_entry, expr) + strlen(expr) + 1);
+	    (1, offsetof(struct udev_filter_entry, expr) + exprlen + valuelen);
 	if (ufe == NULL)
 		return (-1);
 
 	ufe->type = type;
 	ufe->neg = neg;
 	strcpy(ufe->expr, expr);
+	ufe->value = NULL;
+	if (value != NULL) {
+		ufe->value = ufe->expr + exprlen;
+		strcpy(ufe->value, value);
+	}
 	STAILQ_INSERT_TAIL(ufh, ufe, next);
 	return (0);
 }
