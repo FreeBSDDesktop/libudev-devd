@@ -255,7 +255,7 @@ udev_monitor_thread(void *args)
 		action = parse_devd_message(ev, syspath, sizeof(syspath));
 
 		if (action != UD_ACTION_NONE) {
-			if (udev_filter_match(&um->filters, syspath))
+			if (udev_filter_match(um->udev, &um->filters, syspath))
 				udev_monitor_send_device(um, syspath, action);
 		}
 	}

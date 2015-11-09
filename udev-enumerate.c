@@ -125,8 +125,8 @@ udev_enumerate_add_match_sysattr(struct udev_enumerate *ue,
 {
 
 	TRC("(%p, %s, %s)", ue, sysattr, value);
-	UNIMPL();
-	return (0);
+	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_SYSATTR, 0,
+	    sysattr, value));
 }
 
 LIBUDEV_EXPORT int
@@ -135,8 +135,8 @@ udev_enumerate_add_nomatch_sysattr(struct udev_enumerate *ue,
 {
 
 	TRC("(%p, %s, %s)", ue, sysattr, value);
-	UNIMPL();
-	return (0);
+	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_SYSATTR, 1,
+	    sysattr, value));
 }
 
 
@@ -146,8 +146,8 @@ udev_enumerate_add_match_property(struct udev_enumerate *ue,
 {
 
 	TRC("(%p, %s, %s)", ue, property, value);
-	UNIMPL();
-	return (0);
+	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_PROPERTY, 0,
+	    property, value));
 }
 
 LIBUDEV_EXPORT int
@@ -156,7 +156,8 @@ udev_enumerate_add_match_tag(struct udev_enumerate *ue, const char *tag)
 
 	TRC("(%p, %s)", ue, tag);
 	UNIMPL();
-	return (0);
+	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_TAG, 0, tag,
+	    NULL));
 }
 
 
@@ -177,7 +178,7 @@ enumerate_cb(const char *path, int type, void *arg)
 
 	if (type == DT_LNK || type == DT_CHR) {
 		syspath = get_syspath_by_devpath(path);
-		if (udev_filter_match(&ue->filters, syspath) &&
+		if (udev_filter_match(ue->udev, &ue->filters, syspath) &&
 		    udev_list_insert(&ue->dev_list, syspath, NULL) == -1)
 			return (-1);
 	}

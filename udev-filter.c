@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "libudev.h"
+#include "udev-device.h"
 #include "udev-utils.h"
 #include "udev-filter.h"
 
@@ -34,6 +35,7 @@
 
 #include <fnmatch.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,10 +96,32 @@ udev_filter_free(struct udev_filter_head *ufh)
 	STAILQ_INIT(ufh);
 }
 
-int
-udev_filter_match(struct udev_filter_head *ufh, const char *syspath)
+static bool
+fnmatch_list(struct udev_list *list, struct udev_filter_entry *ufe)
+{
+	struct udev_list_entry *entry;
+	const char *key, *value;
+
+	udev_list_entry_foreach(entry, udev_list_entry_get_first(list)) {
+		key = _udev_list_entry_get_name(entry);
+		if (fnmatch(ufe->expr, key, 0) == 0) {
+			value = _udev_list_entry_get_value(entry);
+			if (ufe->value == NULL && value == NULL)
+				return (true);
+			if (ufe->value != NULL && value != NULL &&
+			    fnmatch(ufe->value, value, 0) == 0)
+				return (true);
+		}
+	}
+	return (false);
+}
+
+bool
+udev_filter_match(struct udev *udev, struct udev_filter_head *ufh,
+    const char *syspath)
 {
 	struct udev_filter_entry *ufe;
+	struct udev_device *ud = NULL;
 	const char *subsystem, *sysname;
 	int ret;
 
@@ -106,37 +130,78 @@ udev_filter_match(struct udev_filter_head *ufh, const char *syspath)
 		return (0);
 
 	sysname = get_sysname_by_syspath(syspath);
-	ret = 0;
+	ret = false;
 
 	STAILQ_FOREACH(ufe, ufh, next) {
 		if (ufe->type == UDEV_FILTER_TYPE_SUBSYSTEM &&
 		    ufe->neg == 0 &&
 		    fnmatch(ufe->expr, subsystem, 0) == 0) {
-			ret = 1;
+			ret = true;
 			break;
 		}
 		if (ufe->type == UDEV_FILTER_TYPE_SYSNAME &&
 		    ufe->neg == 0 &&
 		    fnmatch(ufe->expr, sysname, 0) == 0) {
-			ret = 1;
+			ret = true;
 			break;
 		}
+		if (ufe->type == UDEV_FILTER_TYPE_PROPERTY && ufe->neg == 0) {
+			ud = udev_device_new_common(udev, sysname, UD_ACTION_NONE);
+			if (ud == NULL)
+				break;
+			if (fnmatch_list(
+			    udev_device_get_properties_list(ud), ufe)) {
+				ret = true;
+				break;
+			}
+		}
+		if (ufe->type == UDEV_FILTER_TYPE_SYSATTR && ufe->neg == 0) {
+			if (ud == NULL)
+				ud = udev_device_new_common(udev, sysname,
+				    UD_ACTION_NONE);
+			if (ud == NULL)
+				break;
+			if (fnmatch_list(
+			    udev_device_get_sysattr_list(ud), ufe)) {
+				ret = true;
+				break;
+			}
+		}
 	}
+
+	if (!ret)
+		goto out;
 
 	STAILQ_FOREACH(ufe, ufh, next) {
 		if (ufe->type == UDEV_FILTER_TYPE_SUBSYSTEM &&
 		    ufe->neg == 1 &&
 		    fnmatch(ufe->expr, subsystem, 0) == 0) {
-			ret = 0;
+			ret = false;
 			break;
 		}
 		if (ufe->type == UDEV_FILTER_TYPE_SYSNAME &&
 		    ufe->neg == 1 &&
 		    fnmatch(ufe->expr, sysname, 0) == 0) {
-			ret = 0;
+			ret = false;
 			break;
 		}
+		if (ufe->type == UDEV_FILTER_TYPE_SYSATTR && ufe->neg == 1) {
+			if (ud == NULL)
+				ud = udev_device_new_common(udev, sysname,
+				    UD_ACTION_NONE);
+			if (ud == NULL)
+				break;
+			if (fnmatch_list(
+			    udev_device_get_sysattr_list(ud), ufe)) {
+				ret = false;
+				break;
+			}
+		}
 	}
+
+out:
+	if (ud != NULL)
+		udev_device_unref(ud);
 
 	return (ret);
 }
