@@ -27,19 +27,7 @@ AC_CHECK_HEADERS([devinfo.h],
                  [AC_SEARCH_LIBS([devinfo_init], [devinfo])],
                  [],
                  [[@%:@include <devinfo.h>]])
-
-AC_ARG_WITH([libevdev],
-            [AS_HELP_STRING([--with-libevdev],
-                            [support for evdev input devices @<:@default=check@:>@])],
-            [],
-            [with_libevdev=check])
-AS_IF([test "x$with_libevdev" != xno],
-      [PKG_CHECK_MODULES(LIBEVDEV,
-                         [libevdev >= 0.4],
-                         [AC_DEFINE(HAVE_LIBEVDEV, 1, [Have libevdev support])],
-                         [if test "x$with_libevdev" != xcheck; then
-                           AC_MSG_FAILURE([--with-libevdev was given, but test for libevdev failed])
-                         fi])])
+AC_CHECK_HEADERS([linux/input.h])
 
 AC_CONFIG_FILES([Makefile
 		 libudev.pc

@@ -5,11 +5,13 @@ Intended to work with xorg-server and libinput
 
 Installation:
 
-1. install devel/libevdev port. In case of gsoc2014 evdev-enabled kernels it
-   should be patched to use system evdev headers instead of webcamd-supplied
+1. Install multimedia/v4l_compat port. In case of evdev-enabled kernels it
+   can be patched to use system evdev headers instead of webcamd-supplied
 
 2. Build and install libudev-devd
 
+export CFLAGS=-I/usr/local/include
+export CPPFLAGS=-I/usr/local/include
 cd libudev-devd
 ./autogen.sh
 ./configure

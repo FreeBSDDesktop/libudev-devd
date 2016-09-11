@@ -43,9 +43,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef HAVE_LIBEVDEV
-/* input.h BUS_* defines are included via libevdev headers */
-#include <libevdev/libevdev.h>
+#ifdef HAVE_LINUX_INPUT_H
+#include <linux/input.h>
 #else
 #define	BUS_PCI		0x01
 #define	BUS_USB		0x03                                                                                                                                          
@@ -82,11 +81,12 @@ enum {
 	IT_MOUSE,
 	IT_TOUCHPAD,
 	IT_TOUCHSCREEN,
-	IT_JOYSTICK
+	IT_JOYSTICK,
+	IT_TABLET
 };
 
 struct subsystem_config subsystems[] = {
-#ifdef HAVE_LIBEVDEV
+#ifdef HAVE_LINUX_INPUT_H
 	{ "input", DEV_PATH_ROOT "/input/event[0-9]*", create_evdev_handler },
 #endif
 	{ "input", DEV_PATH_ROOT "/ukbd[0-9]*",  create_keyboard_handler },
@@ -185,6 +185,9 @@ set_input_device_type(struct udev_device *ud, int input_type)
 	case IT_JOYSTICK:
 		udev_list_insert(ul, "ID_INPUT_JOYSTICK", "1");
 		break;
+	case IT_TABLET:
+		udev_list_insert(ul, "ID_INPUT_TABLET", "1");
+		break;
 	}
 	return (0);
 }
@@ -215,17 +218,44 @@ create_xorg_parent(struct udev_device *ud, const char* sysname,
 	return (parent);
 }
 
-#ifdef HAVE_LIBEVDEV
+#ifdef HAVE_LINUX_INPUT_H
+
+#define	LONG_BITS	(sizeof(long) * 8)
+#define	NLONGS(x)	(((x) + LONG_BITS - 1) / LONG_BITS)
+
+static inline bool
+bit_is_set(const unsigned long *array, int bit)
+{
+	return !!(array[bit / LONG_BITS] & (1LL << (bit % LONG_BITS)));
+}
+
+static inline bool
+bit_find(const unsigned long *array, int start, int stop)
+{
+	int i;
+
+	for (i = start; i < stop; i++)
+		if (bit_is_set(array, i))
+			return true;
+
+	return false;
+}
+
 void
 create_evdev_handler(struct udev_device *ud)
 {
-	struct libevdev *evdev;
 	struct udev_device *parent;
 	struct udev *udev;
 	const char *sysname;
-	char name[80], product[80];
+	char name[80], product[80], phys[80];
 	int fd, input_type = IT_NONE;
-	bool is_keyboard, opened = false;
+	bool opened = false;
+	bool has_keys, has_buttons, has_lmr;
+	bool has_rel_axes, has_abs_axes, has_mt;
+	unsigned long key_bits[NLONGS(KEY_CNT)];
+	unsigned long rel_bits[NLONGS(REL_CNT)];
+	unsigned long abs_bits[NLONGS(ABS_CNT)];
+	struct input_id id;
 
 	fd = path_to_fd(udev_device_get_devnode(ud));
 	if (fd == -1) {
@@ -235,74 +265,84 @@ create_evdev_handler(struct udev_device *ud)
 	if (fd == -1)
 		return;
 
-	if (libevdev_new_from_fd(fd, &evdev) != 0) {
-		ERR("could not create evdev");
-		return;
+	if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) < 0 ||
+	    (ioctl(fd, EVIOCGPHYS(sizeof(phys)), phys) < 0 && errno != ENOENT) ||
+	    ioctl(fd, EVIOCGID, &id) < 0 ||
+	    ioctl(fd, EVIOCGBIT(EV_REL, sizeof(rel_bits)), rel_bits) < 0 ||
+	    ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(abs_bits)), abs_bits) < 0 ||
+	    ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_bits)), key_bits) < 0) {
+		ERR("could not query evdev");
+		goto bail_out;
 	}
 
-	if (libevdev_has_event_code(evdev, EV_ABS, ABS_X) &&
-	    libevdev_has_event_code(evdev, EV_ABS, ABS_Y) &&
-	    libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_FINGER) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_STYLUS) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_PEN)) {
-		input_type = IT_TOUCHPAD;
-	} else
-	/* Its not rule of thumb but quite common that
-	 * touchscreens do not advertise BTN_TOOL_FINGER event */
-	if (libevdev_has_event_code(evdev, EV_ABS, ABS_X) &&
-	    libevdev_has_event_code(evdev, EV_ABS, ABS_Y) &&
-	    libevdev_has_event_code(evdev, EV_KEY, BTN_TOUCH) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_FINGER) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_STYLUS) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_PEN)) {
-		input_type = IT_TOUCHSCREEN;
-	} else
-	if (libevdev_has_event_code(evdev, EV_REL, REL_X) &&
-	    libevdev_has_event_code(evdev, EV_REL, REL_Y) &&
-	    libevdev_has_event_code(evdev, EV_KEY, BTN_MOUSE)) {
-		input_type = IT_MOUSE;
-	} else
-	if (libevdev_has_event_code(evdev, EV_ABS, ABS_X) &&
-	    libevdev_has_event_code(evdev, EV_ABS, ABS_Y) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_FINGER) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_STYLUS) &&
-	    !libevdev_has_event_code(evdev, EV_KEY, BTN_TOOL_PEN) &&
-	    libevdev_has_event_code(evdev, EV_KEY, BTN_MOUSE)) {
-		input_type = IT_MOUSE;
-	} else {
-		is_keyboard = true;
-		for (int i = KEY_ESC; i <= KEY_D; ++i) {
-			if (!libevdev_has_event_code(evdev, EV_KEY, i)) {
-				is_keyboard = false;
-				break;
+	/* Derived from EvdevProbe() function of xf86-input-evdev driver */
+	has_keys = bit_find(key_bits, 0, BTN_MISC);
+	has_buttons = bit_find(key_bits, BTN_MISC, BTN_JOYSTICK);
+	has_lmr = bit_find(key_bits, BTN_LEFT, BTN_MIDDLE + 1);
+	has_rel_axes = bit_find(rel_bits, 0, REL_CNT);
+	has_abs_axes = bit_find(abs_bits, 0, ABS_CNT);
+	has_mt = bit_find(abs_bits, ABS_MT_SLOT, ABS_CNT);
+
+	if (has_abs_axes) {
+		if (has_mt && !has_buttons) {
+			/* TBD:Improve joystick detection */
+			if (bit_is_set(key_bits, BTN_JOYSTICK)) {
+				input_type = IT_JOYSTICK;
+				goto detected;
+			} else {
+				has_buttons = true;
 			}
 		}
-		if (is_keyboard)
-			input_type = IT_KEYBOARD;
+
+		if (bit_is_set(abs_bits, ABS_X) &&
+		    bit_is_set(abs_bits, ABS_Y)) {
+			if (bit_is_set(key_bits, BTN_TOOL_PEN) ||
+			    bit_is_set(key_bits, BTN_STYLUS) ||
+			    bit_is_set(key_bits, BTN_STYLUS2)) {
+				input_type = IT_TABLET;
+				goto detected;
+			} else if (bit_is_set(abs_bits, ABS_PRESSURE) ||
+			           bit_is_set(key_bits, BTN_TOUCH)) {
+				if (has_lmr ||
+				    bit_is_set(key_bits, BTN_TOOL_FINGER)) {
+					input_type = IT_TOUCHPAD;
+				} else {
+					input_type = IT_TOUCHSCREEN;
+				}
+				goto detected;
+			} else if (!(bit_is_set(rel_bits, REL_X) &&
+			             bit_is_set(rel_bits, REL_Y)) &&
+			             has_lmr) {
+				/* some touchscreens use BTN_LEFT rather than BTN_TOUCH */
+				input_type = IT_TOUCHSCREEN;
+				goto detected;
+			}
+		}
 	}
+
+	if (has_keys)
+		input_type = IT_KEYBOARD;
+	else if (has_rel_axes || has_abs_axes || has_buttons)
+		input_type = IT_MOUSE;
 
 	if (input_type == IT_NONE)
 		goto bail_out;
 
+detected:
 	set_input_device_type(ud, input_type);
 
-	sysname = libevdev_get_phys(evdev);
-	if (sysname == NULL)
-		sysname = virtual_sysname;
+	sysname = phys[0] == 0 ? virtual_sysname : phys;
 
-	strlcpy(name, libevdev_get_name(evdev), sizeof(name));
 	*(strchrnul(name, ',')) = '\0';	/* strip name */
 
 	snprintf(product, sizeof(product), "%x/%x/%x/%x",
-	    libevdev_get_id_bustype(evdev), libevdev_get_id_vendor(evdev),
-	    libevdev_get_id_product(evdev), libevdev_get_id_version(evdev));
+	    id.bustype, id.vendor, id.product, id.version);
 
 	parent = create_xorg_parent(ud, sysname, name, product, NULL);
 	if (parent != NULL)
 		udev_device_set_parent(ud, parent);
 
 bail_out:
-	libevdev_free(evdev);
 	if (opened)
 		close(fd);
 }

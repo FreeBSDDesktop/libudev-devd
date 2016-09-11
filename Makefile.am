@@ -17,10 +17,8 @@ libudev_la_SOURCES =	udev.c			\
 			utils.c			\
 			utils.h
 
-libudev_la_LIBADD =	$(LIBEVDEV_LIBS)
 libudev_la_LDFLAGS =	-pthread
-libudev_la_CFLAGS =	-I$(top_srcdir) -fvisibility=hidden	\
-			$(LIBEVDEV_CFLAGS)
+libudev_la_CFLAGS =	-I$(top_srcdir) -fvisibility=hidden
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libudev.pc
