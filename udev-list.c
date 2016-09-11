@@ -150,7 +150,7 @@ udev_list_entry_get_value(struct udev_list_entry *ule)
 
 	value = _udev_list_entry_get_value(ule);
 	TRC("() %s", value);
-	return (ule->value);
+	return (value);
 }
 
 static int

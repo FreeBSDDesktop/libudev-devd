@@ -269,7 +269,6 @@ scandir_recursive(char *path, size_t len, struct scan_ctx *ctx)
 static int
 scandev_sub(struct devinfo_dev *dev, void *args)
 {
-	struct device_entry *entry;
 	struct scan_ctx *ctx = args;
 
 	if (dev->dd_name[0] != '\0' && dev->dd_state >= DS_ATTACHED)

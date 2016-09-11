@@ -58,7 +58,9 @@
 #define	PS2_MOUSE_VENDOR		0x002
 #define	PS2_MOUSE_GENERIC_PRODUCT	0x001
 
+#ifdef HAVE_LINUX_INPUT_H
 static const char *virtual_sysname = "uinput";
+#endif
 
 void create_evdev_handler(struct udev_device *udev_device);
 void create_keyboard_handler(struct udev_device *udev_device);
@@ -245,7 +247,6 @@ void
 create_evdev_handler(struct udev_device *ud)
 {
 	struct udev_device *parent;
-	struct udev *udev;
 	const char *sysname;
 	char name[80], product[80], phys[80];
 	int fd, input_type = IT_NONE;
@@ -365,11 +366,10 @@ void
 set_parent(struct udev_device *ud)
 {
         struct udev_device *parent;
-        struct udev *udev;
 	char devname[DEV_PATH_MAX], mib[32], pnpinfo[1024];
 	char name[80], product[80], parentname[80], *pnp_id;
 	const char *sysname, *unit, *vendorstr, *prodstr, *devicestr;
-	size_t len, buflen, vendorlen, prodlen, devicelen, pnplen;
+	size_t len, vendorlen, prodlen, devicelen, pnplen;
 	uint32_t bus, prod, vendor;
 
 	sysname = udev_device_get_sysname(ud);
