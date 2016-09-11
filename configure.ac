@@ -28,6 +28,7 @@ AC_CHECK_HEADERS([devinfo.h],
                  [],
                  [[@%:@include <devinfo.h>]])
 AC_CHECK_HEADERS([linux/input.h])
+AC_CHECK_FUNCS([pipe2 strchrnul])
 
 AC_CONFIG_FILES([Makefile
 		 libudev.pc

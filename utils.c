@@ -52,6 +52,10 @@
 static pthread_mutex_t devinfo_mtx = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
+#ifndef HAVE_PIPE2
+#include <fcntl.h>
+#endif
+
 int
 socket_connect(const char *path)
 {
@@ -307,3 +311,40 @@ scandev_recursive (struct scan_ctx *ctx)
 	return (ret);
 }
 #endif /* HAVE_DEVINFO_H */
+
+#ifndef HAVE_PIPE2
+int
+pipe2(int fildes[2], int flags)
+{
+	int ret;
+
+	ret = pipe(fildes);
+	if (ret != -1) {
+		if (flags & O_CLOEXEC) {
+			fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
+			fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
+		}
+		if (flags & O_NONBLOCK) {
+			fcntl(fildes[0], F_SETFL, O_NONBLOCK);
+			fcntl(fildes[1], F_SETFL, O_NONBLOCK);
+		}
+	}
+
+	return (ret);
+}
+#endif /* !HAVE_PIPE2 */
+
+#ifndef HAVE_STRCHRNUL
+char *
+strchrnul(const char *p, int ch)
+{
+	char c;
+
+	c = ch;
+	for (;; ++p) {
+		if (*p == c || *p == '\0')
+			return ((char *)p);
+	}
+	/* NOTREACHED */
+}
+#endif /* !HAVE_STRCHRNUL */

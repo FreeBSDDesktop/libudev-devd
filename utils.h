@@ -54,5 +54,11 @@ int scandir_recursive(char *path, size_t len, struct scan_ctx *ctx);
 #ifdef HAVE_DEVINFO_H
 int scandev_recursive(struct scan_ctx *ctx);
 #endif
+#ifndef HAVE_PIPE2
+int pipe2(int fildes[2], int flags);
+#endif
+#ifndef HAVE_STRCHRNUL
+char *strchrnul(const char *p, int ch);
+#endif
 
 #endif /* UTILS_H_ */
