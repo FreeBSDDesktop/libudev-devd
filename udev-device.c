@@ -34,6 +34,7 @@
 #include "utils.h"
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/stat.h>
 
 #include <stdarg.h>
@@ -71,9 +72,12 @@ LIBUDEV_EXPORT struct udev_device *
 udev_device_new_from_devnum(struct udev *udev, char type, dev_t devnum)
 {
 	char devpath[DEV_PATH_MAX] = DEV_PATH_ROOT "/";
+	char devbuf[32], buf[32], *devbufptr;
 	const char *syspath;
+	struct udev_device *device, *parent;
 	size_t dev_len;
 	struct stat st;
+	size_t buflen;
 
 	dev_len = strlen(devpath);
 	devname_r(devnum, S_IFCHR, devpath + dev_len, sizeof(devpath) - dev_len);
@@ -86,7 +90,23 @@ udev_device_new_from_devnum(struct udev *udev, char type, dev_t devnum)
 
 	TRC("(%d) -> %s", (int)devnum, devpath);
 	syspath = get_syspath_by_devpath(devpath);
-	return (udev_device_new_common(udev, syspath, UD_ACTION_NONE));
+	strncpy(devbuf, devpath + 1, 32);
+	devbufptr = devbuf;
+	devbufptr = strchrnul(devbufptr, '/');
+	while (*devbufptr != '\0') {
+		*devbufptr = '.';
+		devbufptr = strchrnul(devbufptr, '/');
+	}
+	snprintf(buf, 32, "%s.PCI_ID", devbuf);
+	buflen = 32;
+
+	sysctlbyname(buf, devbuf, &buflen, NULL, 0);
+
+	device = udev_device_new_common(udev, syspath, UD_ACTION_NONE);
+	parent = udev_device_new_common(udev, syspath, UD_ACTION_NONE);
+	udev_list_insert(&parent->prop_list, "PCI_ID", devbuf);
+	udev_device_set_parent(device, parent);
+	return (device);
 }
 
 LIBUDEV_EXPORT struct udev_device *
