@@ -4,14 +4,15 @@
 #include <stdio.h>
 #include <unistd.h>
 
-/*
+
 #define	ENABLE_TRACE
 #define	LOG_LEVEL       1
-*/
+
+/*
 #ifndef	LOG_LEVEL
 #define	LOG_LEVEL -1
 #endif
-
+*/
 #ifdef ENABLE_TRACE
 #define	TRC(msg, ...)							\
 do {									\
