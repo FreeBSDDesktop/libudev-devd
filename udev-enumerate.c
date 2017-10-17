@@ -155,13 +155,12 @@ udev_enumerate_add_match_tag(struct udev_enumerate *ue, const char *tag)
 {
 
 	TRC("(%p, %s)", ue, tag);
-	UNIMPL();
 	return (udev_filter_add(&ue->filters, UDEV_FILTER_TYPE_TAG, 0, tag,
 	    NULL));
 }
 
 
-LIBUDEV_EXPORT int 
+LIBUDEV_EXPORT int
 udev_enumerate_add_match_is_initialized(struct udev_enumerate *ue)
 {
 
