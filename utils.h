@@ -1,6 +1,7 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -40,7 +41,13 @@ do {									\
 
 typedef int (* scan_cb_t) (const char *path, int type, void *args);
 
+/* If .recursive is true, then .cb gets called for non-dir
+ * paths, an the overall scandir is recursive. If .recursive
+ * is false, then .cb gets called for all paths in the
+ * directory, and scandir is non-recursive.
+ */
 struct scan_ctx {
+	bool recursive;
 	scan_cb_t cb;
 	void *args;
 };

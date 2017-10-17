@@ -205,3 +205,40 @@ out:
 
 	return (ret);
 }
+
+/*
+ * Returns true if the given @p subsystem is accepted by the
+ * filters applied to the enumerator @p ue.
+ */
+bool
+udev_filter_match_subsystem(struct udev_filter_head *ufh, const char *subsystem)
+{
+	if (!subsystem)
+		return false;
+
+	if (STAILQ_EMPTY(ufh))
+		return true;
+
+	struct udev_filter_entry *ufe;
+
+	/* Scan for negative matches */
+	STAILQ_FOREACH(ufe, ufh, next) {
+		if (ufe->type == UDEV_FILTER_TYPE_SUBSYSTEM &&
+			ufe->neg != 0 &&
+			fnmatch(ufe->expr, subsystem, 0) == 0) {
+			return false;
+		}
+	}
+
+	/* Not empty, scan for positive matches */
+	STAILQ_FOREACH(ufe, ufh, next) {
+		if (ufe->type == UDEV_FILTER_TYPE_SUBSYSTEM &&
+			ufe->neg == 0 &&
+			fnmatch(ufe->expr, subsystem, 0) == 0) {
+			return true;
+		}
+	}
+
+	/* Not empty, matched nothing */
+	return false;
+}

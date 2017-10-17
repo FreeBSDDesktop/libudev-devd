@@ -237,7 +237,7 @@ scandir_sub(char *path, int off, int rem, struct scan_ctx *ctx)
 		off += len;
 		rem -= len;
 
-		if (ent->d_type == DT_DIR) {
+		if ((ctx->recursive) && (ent->d_type == DT_DIR)) {
 			if (rem < 1)
 				break;
 			path[off] = '/';
@@ -264,7 +264,7 @@ scandir_sub(char *path, int off, int rem, struct scan_ctx *ctx)
 int
 scandir_recursive(char *path, size_t len, struct scan_ctx *ctx)
 {
-	size_t root_len = strlen(path);	
+	size_t root_len = strlen(path);
 
 	return (scandir_sub(path, root_len, len - root_len - 1, ctx));
 }
