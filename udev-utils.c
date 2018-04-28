@@ -47,10 +47,10 @@
 #include <linux/input.h>
 #else
 #define	BUS_PCI		0x01
-#define	BUS_USB		0x03                                                                                                                                          
-#define BUS_VIRTUAL	0x06                                                                                                                                          
-#define BUS_ISA		0x10                                                                                                                                          
-#define BUS_I8042	0x11
+#define	BUS_USB		0x03
+#define	BUS_VIRTUAL	0x06
+#define	BUS_ISA		0x10
+#define	BUS_I8042	0x11
 #endif
 
 #define	PS2_KEYBOARD_VENDOR		0x001
