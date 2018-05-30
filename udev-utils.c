@@ -47,10 +47,10 @@
 #include <linux/input.h>
 #else
 #define	BUS_PCI		0x01
-#define	BUS_USB		0x03                                                                                                                                          
-#define BUS_VIRTUAL	0x06                                                                                                                                          
-#define BUS_ISA		0x10                                                                                                                                          
-#define BUS_I8042	0x11
+#define	BUS_USB		0x03
+#define	BUS_VIRTUAL	0x06
+#define	BUS_ISA		0x10
+#define	BUS_I8042	0x11
 #endif
 
 #define	PS2_KEYBOARD_VENDOR		0x001
@@ -74,6 +74,7 @@ void create_kbdmux_handler(struct udev_device *udev_device);
 struct subsystem_config {
 	char *subsystem;
 	char *syspath;
+	int flags; /* See SCFLAG_* below. */
 	void (*create_handler)(struct udev_device *udev_device);
 };
 
@@ -87,21 +88,49 @@ enum {
 	IT_TABLET
 };
 
+/* Flag which in indicates a device should be skipped because it's
+ * already exposed through EVDEV when it's enabled. */
+#define	SCFLAG_SKIP_IF_EVDEV	0x01
+
 struct subsystem_config subsystems[] = {
 #ifdef HAVE_LINUX_INPUT_H
-	{ "input", DEV_PATH_ROOT "/input/event[0-9]*", create_evdev_handler },
+	{ "input", DEV_PATH_ROOT "/input/event[0-9]*",
+		0,
+		create_evdev_handler },
 #endif
-	{ "input", DEV_PATH_ROOT "/ukbd[0-9]*",  create_keyboard_handler },
-	{ "input", DEV_PATH_ROOT "/atkbd[0-9]*", create_keyboard_handler },
-	{ "input", DEV_PATH_ROOT "/kbdmux[0-9]*", create_kbdmux_handler },
-	{ "input", DEV_PATH_ROOT "/ums[0-9]*", create_mouse_handler },
-	{ "input", DEV_PATH_ROOT "/psm[0-9]*", create_mouse_handler },
-	{ "input", DEV_PATH_ROOT "/joy[0-9]*", create_joystick_handler },
-	{ "input", DEV_PATH_ROOT "/atp[0-9]*", create_touchpad_handler },
-	{ "input", DEV_PATH_ROOT "/wsp[0-9]*", create_touchpad_handler },
-	{ "input", DEV_PATH_ROOT "/uep[0-9]*", create_touchscreen_handler },
-	{ "input", DEV_PATH_ROOT "/sysmouse", create_sysmouse_handler },
-	{ "input", DEV_PATH_ROOT "/vboxguest", create_mouse_handler },
+	{ "input", DEV_PATH_ROOT "/ukbd[0-9]*",
+		SCFLAG_SKIP_IF_EVDEV,
+		create_keyboard_handler },
+	{ "input", DEV_PATH_ROOT "/atkbd[0-9]*",
+		SCFLAG_SKIP_IF_EVDEV,
+		create_keyboard_handler },
+	{ "input", DEV_PATH_ROOT "/kbdmux[0-9]*",
+		SCFLAG_SKIP_IF_EVDEV,
+		create_kbdmux_handler },
+	{ "input", DEV_PATH_ROOT "/ums[0-9]*",
+		SCFLAG_SKIP_IF_EVDEV,
+		create_mouse_handler },
+	{ "input", DEV_PATH_ROOT "/psm[0-9]*",
+		SCFLAG_SKIP_IF_EVDEV,
+		create_mouse_handler },
+	{ "input", DEV_PATH_ROOT "/joy[0-9]*",
+		0,
+		create_joystick_handler },
+	{ "input", DEV_PATH_ROOT "/atp[0-9]*",
+		0,
+		create_touchpad_handler },
+	{ "input", DEV_PATH_ROOT "/wsp[0-9]*",
+		0,
+		create_touchpad_handler },
+	{ "input", DEV_PATH_ROOT "/uep[0-9]*",
+		0,
+		create_touchscreen_handler },
+	{ "input", DEV_PATH_ROOT "/sysmouse",
+		SCFLAG_SKIP_IF_EVDEV,
+		create_sysmouse_handler },
+	{ "input", DEV_PATH_ROOT "/vboxguest",
+		0,
+		create_mouse_handler },
 };
 
 static struct subsystem_config *
@@ -116,13 +145,36 @@ get_subsystem_config_by_syspath(const char *path)
 	return (NULL);
 }
 
+static bool
+kernel_has_evdev_enabled()
+{
+	static int enabled = -1;
+	size_t len;
+
+	if (enabled != -1)
+		return (enabled);
+
+	if (sysctlbyname("kern.features.evdev_support", &enabled, &len, NULL, 0) < 0)
+		return (0);
+
+	TRC("() EVDEV enabled: %s", enabled ? "true" : "false");
+	return (enabled);
+}
+
 const char *
 get_subsystem_by_syspath(const char *syspath)
 {
 	struct subsystem_config *sc;
 
 	sc = get_subsystem_config_by_syspath(syspath);
-	return (sc == NULL ? UNKNOWN_SUBSYSTEM : sc->subsystem);
+	if (sc == NULL)
+		return (UNKNOWN_SUBSYSTEM);
+	if (sc->flags & SCFLAG_SKIP_IF_EVDEV && kernel_has_evdev_enabled()) {
+		TRC("(%s) EVDEV enabled -> skipping device", syspath);
+		return (UNKNOWN_SUBSYSTEM);
+	}
+
+	return (sc->subsystem);
 }
 
 const char *
@@ -154,11 +206,14 @@ invoke_create_handler(struct udev_device *ud)
 
 	path = udev_device_get_syspath(ud);
 	sc = get_subsystem_config_by_syspath(path);
+	if (sc == NULL || sc->create_handler == NULL)
+		return;
+	if (sc->flags & SCFLAG_SKIP_IF_EVDEV && kernel_has_evdev_enabled()) {
+		TRC("(%p) EVDEV enabled -> skipping device", ud);
+		return;
+	}
 
-	if (sc != NULL && sc->create_handler != NULL)
-		sc->create_handler(ud);
-
-	return;
+	sc->create_handler(ud);
 }
 
 static int
