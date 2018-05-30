@@ -130,7 +130,8 @@ udev_filter_match(struct udev *udev, struct udev_filter_head *ufh,
 		return (0);
 
 	sysname = get_sysname_by_syspath(syspath);
-	ret = false;
+	/* An empty filter list accepts everything. */
+	ret = STAILQ_EMPTY(ufh);
 
 	STAILQ_FOREACH(ufe, ufh, next) {
 		if (ufe->type == UDEV_FILTER_TYPE_SUBSYSTEM &&
