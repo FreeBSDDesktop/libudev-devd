@@ -195,6 +195,7 @@ udev_enumerate_scan_devices(struct udev_enumerate *ue)
 
 	udev_list_free(&ue->dev_list);
 	ctx = (struct scan_ctx) {
+		.recursive = true,
 		.cb = enumerate_cb,
 		.args = ue,
 	};
@@ -206,6 +207,54 @@ udev_enumerate_scan_devices(struct udev_enumerate *ue)
 #endif
 	if (ret == -1)
 		udev_list_free(&ue->dev_list);
+	return ret;
+}
+
+/*
+ * Enumerate subsystems -- under /sys/modules, /sys/dev, only
+ * list the directories.
+ */
+static int
+enumerate_ssys_cb(const char *path, int type, void *arg)
+{
+	struct udev_enumerate *ue = arg;
+
+	if (type == DT_DIR) {
+		if (udev_list_insert(&ue->dev_list, path, NULL) == -1)
+			return (-1);
+	}
+	return (0);
+}
+
+LIBUDEV_EXPORT int
+udev_enumerate_scan_subsystems(struct udev_enumerate *ue)
+{
+	int ret = 0;
+
+	TRC("(%p)", ue);
+	udev_list_free(&ue->dev_list);
+
+	struct scan_ctx ctx;
+	char modules_path[DEV_PATH_MAX] = "/sys/modules/";
+	char drivers_path[DEV_PATH_MAX] = "/sys/dev/";
+
+	ctx = (struct scan_ctx) {
+		.recursive = false,
+		.cb = enumerate_ssys_cb,
+		.args = ue,
+	};
+	if (udev_filter_match_subsystem(&(ue->filters), "module"))
+	{
+		ret = scandir_recursive(modules_path, sizeof(modules_path), &ctx);
+	}
+	if (0 && (ret == 0) && (udev_filter_match_subsystem(&(ue->filters), "subsystem")))
+	{
+		/* ret = scandir_recursive(subsystems_path, sizeof(subsystems_path), &ctx); */
+	}
+	if ((ret == 0) && (udev_filter_match_subsystem(&(ue->filters), "driver")))
+	{
+		ret = scandir_recursive(drivers_path, sizeof(drivers_path), &ctx);
+	}
 	return ret;
 }
 

@@ -13,6 +13,8 @@ enum {
 STAILQ_HEAD(udev_filter_head, udev_filter_entry);
 
 void udev_filter_init(struct udev_filter_head *ufh);
+bool udev_filter_match_subsystem(struct udev_filter_head *ufh,
+    const char *subsystem);
 bool udev_filter_match(struct udev *udev, struct udev_filter_head *ufh,
     const char *syspath);
 int udev_filter_add(struct udev_filter_head *ufh, int type, int neg,
