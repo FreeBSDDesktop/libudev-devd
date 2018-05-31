@@ -410,8 +410,8 @@ syspathlen_wo_units(const char *path) {
 
 	len = strlen(path);
 	while (len > 0) {
-	if (path[len-1] < '0' || path[len-1] > '9')
-		break;
+		if (path[len-1] < '0' || path[len-1] > '9')
+			break;
 		--len;
 	}
 	return len;
