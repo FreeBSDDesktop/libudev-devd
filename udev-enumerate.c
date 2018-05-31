@@ -214,7 +214,7 @@ udev_enumerate_scan_devices(struct udev_enumerate *ue)
  * Enumerate subsystems -- under /sys/modules, /sys/dev, only
  * list the directories.
  */
-static int
+static int __attribute__((unused))
 enumerate_ssys_cb(const char *path, int type, void *arg)
 {
 	struct udev_enumerate *ue = arg;

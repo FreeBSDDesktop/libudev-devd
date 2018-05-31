@@ -6,8 +6,8 @@
 #include <unistd.h>
 
 
-#define	ENABLE_TRACE
-#define	LOG_LEVEL       1
+/* #define	ENABLE_TRACE */
+#define	LOG_LEVEL       0
 
 /*
 #ifndef	LOG_LEVEL
