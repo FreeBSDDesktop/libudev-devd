@@ -70,6 +70,7 @@ void create_touchpad_handler(struct udev_device *udev_device);
 void create_touchscreen_handler(struct udev_device *udev_device);
 void create_sysmouse_handler(struct udev_device *udev_device);
 void create_kbdmux_handler(struct udev_device *udev_device);
+void create_drm_handler(struct udev_device *udev_device);
 
 struct subsystem_config {
 	char *subsystem;
@@ -131,6 +132,9 @@ struct subsystem_config subsystems[] = {
 	{ "input", DEV_PATH_ROOT "/vboxguest",
 		0,
 		create_mouse_handler },
+	{ "drm", DEV_PATH_ROOT "/dri/card[0-9]*",
+		0,
+		create_drm_handler },
 };
 
 static struct subsystem_config *
@@ -557,5 +561,12 @@ void create_touchscreen_handler(struct udev_device *ud)
 {
 
 	set_input_device_type(ud, IT_TOUCHSCREEN);
+	set_parent(ud);
+}
+
+void
+create_drm_handler(struct udev_device *ud)
+{
+	udev_list_insert(udev_device_get_properties_list(ud), "HOTPLUG", "1");
 	set_parent(ud);
 }

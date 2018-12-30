@@ -9,6 +9,7 @@ enum {
 	UD_ACTION_NONE,
 	UD_ACTION_ADD,
 	UD_ACTION_REMOVE,
+	UD_ACTION_HOTPLUG,
 };
 
 struct udev_device *udev_device_new_common(struct udev *udev,

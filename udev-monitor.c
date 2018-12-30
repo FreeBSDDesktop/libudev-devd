@@ -152,9 +152,8 @@ parse_devd_message(char *msg, char *syspath, size_t syspathlen)
 		break;
 #endif /* HAVE_DEVINFO_H */
 	case DEVD_EVENT_NOTICE:
-		if (!match_kern_prop_value(msg + 1, "system", "DEVFS"))
-			break;
-		if (!match_kern_prop_value(msg + 1, "subsystem", "CDEV"))
+		if (!(match_kern_prop_value(msg + 1, "system", "DEVFS") && match_kern_prop_value(msg + 1, "subsystem", "CDEV"))
+			&& !match_kern_prop_value(msg + 1, "system", "DRM"))
 			break;
 		type = get_kern_prop_value(msg + 1, "type", &type_len);
 		dev_name = get_kern_prop_value(msg + 1, "cdev", &dev_len);
@@ -168,6 +167,9 @@ parse_devd_message(char *msg, char *syspath, size_t syspathlen)
 		else if (type_len == 7 &&
 		    strncmp(type, "DESTROY", type_len) == 0)
 			action = UD_ACTION_REMOVE;
+		else if (type_len == 7 &&
+		    strncmp(type, "HOTPLUG", type_len) == 0)
+			action = UD_ACTION_HOTPLUG;
 		else
 			break;
 		memcpy(devpath + root_len, dev_name, dev_len);
