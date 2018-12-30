@@ -310,9 +310,10 @@ void
 create_evdev_handler(struct udev_device *ud)
 {
 	struct udev_device *parent;
-	const char *sysname;
-	char name[80], product[80], phys[80];
+	const char *sysname, *unit;
+	char name[80], product[80], phys[80], mib[32];
 	int fd, input_type = IT_NONE;
+	size_t len;
 	bool opened = false;
 	bool has_keys, has_buttons, has_lmr;
 	bool has_rel_axes, has_abs_axes, has_mt;
@@ -321,6 +322,50 @@ create_evdev_handler(struct udev_device *ud)
 	unsigned long abs_bits[NLONGS(ABS_CNT)];
 	unsigned long prp_bits[NLONGS(INPUT_PROP_CNT)];
 	struct input_id id;
+
+	sysname = udev_device_get_sysname(ud);
+	len = syspathlen_wo_units(sysname);
+	unit = sysname + len;
+
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.name", unit);
+	len = sizeof(name);
+	if (sysctlbyname(mib, name, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.phys", unit);
+	len = sizeof(phys);
+	if (sysctlbyname(mib, phys, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.id", unit);
+	len = sizeof(id);
+	if (sysctlbyname(mib, &id, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.key_bits", unit);
+	len = sizeof(key_bits);
+	if (sysctlbyname(mib, key_bits, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.rel_bits", unit);
+	len = sizeof(rel_bits);
+	if (sysctlbyname(mib, rel_bits, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.abs_bits", unit);
+	len = sizeof(abs_bits);
+	if (sysctlbyname(mib, abs_bits, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.props", unit);
+	len = sizeof(prp_bits);
+	if (sysctlbyname(mib, prp_bits, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
+	goto found_values;
+
+use_ioctl:
+	ERR("sysctl not found, opening device and using ioctl");
 
 	fd = path_to_fd(udev_device_get_devnode(ud));
 	if (fd == -1) {
@@ -341,6 +386,7 @@ create_evdev_handler(struct udev_device *ud)
 		goto bail_out;
 	}
 
+found_values:
 	/* Derived from EvdevProbe() function of xf86-input-evdev driver */
 	has_keys = bit_find(key_bits, 0, BTN_MISC);
 	has_buttons = bit_find(key_bits, BTN_MISC, BTN_JOYSTICK);
