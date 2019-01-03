@@ -152,7 +152,8 @@ parse_devd_message(char *msg, char *syspath, size_t syspathlen)
 		break;
 #endif /* HAVE_DEVINFO_H */
 	case DEVD_EVENT_NOTICE:
-		if (!(match_kern_prop_value(msg + 1, "system", "DEVFS") && match_kern_prop_value(msg + 1, "subsystem", "CDEV"))
+		if (!(match_kern_prop_value(msg + 1, "system", "DEVFS")
+			&& match_kern_prop_value(msg + 1, "subsystem", "CDEV"))
 			&& !match_kern_prop_value(msg + 1, "system", "DRM"))
 			break;
 		type = get_kern_prop_value(msg + 1, "type", &type_len);
