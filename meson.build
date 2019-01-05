@@ -92,7 +92,7 @@ pkgconfig.generate(
 	filebase : 'libudev',
 	name : 'libudev',
 	description : 'Library to access udev device information',
-	version : 199, # XXX - should be a proper version
+	version : '199', # XXX - should be a proper version
 	libraries : lib_libudevdevd
 )
 
