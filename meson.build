@@ -19,6 +19,7 @@ add_project_arguments(cflags, language: 'c')
 
 # config.h
 config_h = configuration_data()
+config_h_inc = include_directories('.')
 if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
 	config_h.set_quoted('MESON_BUILD_ROOT', meson.build_root())
 else
@@ -26,6 +27,7 @@ else
 endif
 
 if cc.has_header('devinfo.h')
+	devinfo_dep = cc.find_library('devinfo')
 	config_h.set('HAVE_DEVINFO_H', '1')
 endif
 
@@ -34,6 +36,7 @@ procstat_inc = '''#include <sys/param.h>
 #include <sys/socket.h>
 '''
 if cc.has_header_symbol('libprocstat.h', 'procstat_open_sysctl', prefix : procstat_inc)
+	procstat_dep = cc.find_library('procstat')
 	config_h.set('HAVE_LIBPROCSTAT_H', '1')
 endif
 
@@ -52,6 +55,7 @@ endif
 libudevdevd_so_version = '0.0.0'
 # Dependencies
 thread_dep = dependency('threads')
+
 pkgconfig = import('pkgconfig')
 
 install_headers('libudev.h')
@@ -71,14 +75,16 @@ src_libudevdevd = [ 'udev.c',
 ]
 
 deps_libudevdevd = [
-	thread_dep
+	thread_dep,
+	devinfo_dep,
+	procstat_dep
 ]
 
 lib_libudevdevd = shared_library('udev',
 	src_libudevdevd,
+	include_directories : config_h_inc,
 	dependencies : deps_libudevdevd,
 	version : libudevdevd_so_version,
-	link_args : '-pthread',
 	install : true
 )
 
