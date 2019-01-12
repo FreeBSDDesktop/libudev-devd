@@ -147,7 +147,7 @@ udev_filter_match(struct udev *udev, struct udev_filter_head *ufh,
 			break;
 		}
 		if (ufe->type == UDEV_FILTER_TYPE_PROPERTY && ufe->neg == 0) {
-			ud = udev_device_new_common(udev, sysname, UD_ACTION_NONE);
+			ud = udev_device_new_common(udev, syspath, UD_ACTION_NONE);
 			if (ud == NULL)
 				break;
 			if (fnmatch_list(
@@ -158,7 +158,7 @@ udev_filter_match(struct udev *udev, struct udev_filter_head *ufh,
 		}
 		if (ufe->type == UDEV_FILTER_TYPE_SYSATTR && ufe->neg == 0) {
 			if (ud == NULL)
-				ud = udev_device_new_common(udev, sysname,
+				ud = udev_device_new_common(udev, syspath,
 				    UD_ACTION_NONE);
 			if (ud == NULL)
 				break;
