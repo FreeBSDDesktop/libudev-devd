@@ -376,6 +376,9 @@ udev_device_get_action(struct udev_device *ud)
 	case UD_ACTION_REMOVE:
 		action = "remove";
 		break;
+	case UD_ACTION_HOTPLUG:
+		action = "change";
+		break;
 	default:
 		action = "unknown";
 	}
