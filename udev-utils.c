@@ -86,7 +86,8 @@ enum {
 	IT_TOUCHPAD,
 	IT_TOUCHSCREEN,
 	IT_JOYSTICK,
-	IT_TABLET
+	IT_TABLET,
+	IT_ACCELEROMETER,
 };
 
 /* Flag which in indicates a device should be skipped because it's
@@ -249,6 +250,9 @@ set_input_device_type(struct udev_device *ud, int input_type)
 	case IT_TABLET:
 		udev_list_insert(ul, "ID_INPUT_TABLET", "1");
 		break;
+	case IT_ACCELEROMETER:
+		udev_list_insert(ul, "ID_INPUT_ACCELEROMETER", "1");
+		break;
 	}
 	return (0);
 }
@@ -315,6 +319,7 @@ create_evdev_handler(struct udev_device *ud)
 	unsigned long key_bits[NLONGS(KEY_CNT)];
 	unsigned long rel_bits[NLONGS(REL_CNT)];
 	unsigned long abs_bits[NLONGS(ABS_CNT)];
+	unsigned long prp_bits[NLONGS(INPUT_PROP_CNT)];
 	struct input_id id;
 
 	fd = path_to_fd(udev_device_get_devnode(ud));
@@ -330,7 +335,8 @@ create_evdev_handler(struct udev_device *ud)
 	    ioctl(fd, EVIOCGID, &id) < 0 ||
 	    ioctl(fd, EVIOCGBIT(EV_REL, sizeof(rel_bits)), rel_bits) < 0 ||
 	    ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(abs_bits)), abs_bits) < 0 ||
-	    ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_bits)), key_bits) < 0) {
+	    ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_bits)), key_bits) < 0 ||
+	    ioctl(fd, EVIOCGPROP(sizeof(prp_bits)), prp_bits) < 0) {
 		ERR("could not query evdev");
 		goto bail_out;
 	}
@@ -345,7 +351,6 @@ create_evdev_handler(struct udev_device *ud)
 
 	if (has_abs_axes) {
 		if (has_mt && !has_buttons) {
-			/* TBD:Improve joystick detection */
 			if (bit_is_set(key_bits, BTN_JOYSTICK)) {
 				input_type = IT_JOYSTICK;
 				goto detected;
@@ -360,6 +365,12 @@ create_evdev_handler(struct udev_device *ud)
 			    bit_is_set(key_bits, BTN_STYLUS) ||
 			    bit_is_set(key_bits, BTN_STYLUS2)) {
 				input_type = IT_TABLET;
+				goto detected;
+			} else if (bit_is_set(key_bits, BTN_SELECT) ||
+			           bit_is_set(key_bits, BTN_START) ||
+			           bit_is_set(key_bits, BTN_TL) ||
+			           bit_is_set(key_bits, BTN_TR)) {
+				input_type = IT_JOYSTICK;
 				goto detected;
 			} else if (bit_is_set(abs_bits, ABS_PRESSURE) ||
 			           bit_is_set(key_bits, BTN_TOUCH)) {
@@ -380,9 +391,11 @@ create_evdev_handler(struct udev_device *ud)
 		}
 	}
 
-	if (has_keys)
+	if (bit_is_set(prp_bits, INPUT_PROP_ACCELEROMETER))
+		input_type = IT_ACCELEROMETER;
+	else if (has_keys)
 		input_type = IT_KEYBOARD;
-	else if (has_rel_axes || has_abs_axes || has_buttons)
+	else if (bit_is_set(prp_bits, INPUT_PROP_POINTER) || has_rel_axes || has_abs_axes || has_buttons)
 		input_type = IT_MOUSE;
 
 	if (input_type == IT_NONE)
