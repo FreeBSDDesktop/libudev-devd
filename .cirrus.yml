@@ -13,6 +13,6 @@ task:
     - pkg install -y evdev-proto autoconf automake libtool gmake pkgconf
 
   script: |
-    autoreconf
+    ./autogen.sh
     ./configure
     MOREFLAGS="-Werror" gmake -j all
