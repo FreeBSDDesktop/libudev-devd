@@ -14,5 +14,5 @@ task:
 
   script: |
     ./autogen.sh
-    ./configure
+    ./configure --disable-silent-rules
     MOREFLAGS="-Werror" gmake -j all
