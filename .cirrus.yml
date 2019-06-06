@@ -10,9 +10,7 @@ task:
   install_script:
     - sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
     - pkg upgrade -y
-    - pkg install -y evdev-proto autoconf automake libtool gmake pkgconf
-
-  script: |
-    ./autogen.sh
-    ./configure --disable-silent-rules
-    MOREFLAGS="-Werror" gmake -j all
+    - pkg install -y evdev-proto meson ninja pkgconf
+  script: 
+    - meson _build
+    - ninja -C _build
