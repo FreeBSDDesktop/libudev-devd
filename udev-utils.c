@@ -88,6 +88,7 @@ enum {
 	IT_JOYSTICK,
 	IT_TABLET,
 	IT_ACCELEROMETER,
+	IT_SWITCH,
 };
 
 /* Flag which in indicates a device should be skipped because it's
@@ -253,6 +254,9 @@ set_input_device_type(struct udev_device *ud, int input_type)
 	case IT_ACCELEROMETER:
 		udev_list_insert(ul, "ID_INPUT_ACCELEROMETER", "1");
 		break;
+	case IT_SWITCH:
+		udev_list_insert(ul, "ID_INPUT_SWITCH", "1");
+		break;
 	}
 	return (0);
 }
@@ -316,10 +320,11 @@ create_evdev_handler(struct udev_device *ud)
 	size_t len;
 	bool opened = false;
 	bool has_keys, has_buttons, has_lmr;
-	bool has_rel_axes, has_abs_axes, has_mt;
+	bool has_rel_axes, has_abs_axes, has_mt, has_switches;
 	unsigned long key_bits[NLONGS(KEY_CNT)];
 	unsigned long rel_bits[NLONGS(REL_CNT)];
 	unsigned long abs_bits[NLONGS(ABS_CNT)];
+	unsigned long sw_bits[NLONGS(SW_CNT)];
 	unsigned long prp_bits[NLONGS(INPUT_PROP_CNT)];
 	struct input_id id;
 
@@ -357,6 +362,11 @@ create_evdev_handler(struct udev_device *ud)
 	if (sysctlbyname(mib, abs_bits, &len, NULL, 0) < 0)
 		goto use_ioctl;
 
+	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.sw_bits", unit);
+	len = sizeof(sw_bits);
+	if (sysctlbyname(mib, sw_bits, &len, NULL, 0) < 0)
+		goto use_ioctl;
+
 	snprintf(mib, sizeof(mib), "kern.evdev.input.%s.props", unit);
 	len = sizeof(prp_bits);
 	if (sysctlbyname(mib, prp_bits, &len, NULL, 0) < 0)
@@ -381,6 +391,7 @@ use_ioctl:
 	    ioctl(fd, EVIOCGBIT(EV_REL, sizeof(rel_bits)), rel_bits) < 0 ||
 	    ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(abs_bits)), abs_bits) < 0 ||
 	    ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_bits)), key_bits) < 0 ||
+	    ioctl(fd, EVIOCGBIT(EV_SW, sizeof(sw_bits)), sw_bits) < 0 ||
 	    ioctl(fd, EVIOCGPROP(sizeof(prp_bits)), prp_bits) < 0) {
 		ERR("could not query evdev");
 		goto bail_out;
@@ -393,6 +404,7 @@ found_values:
 	has_lmr = bit_find(key_bits, BTN_LEFT, BTN_MIDDLE + 1);
 	has_rel_axes = bit_find(rel_bits, 0, REL_CNT);
 	has_abs_axes = bit_find(abs_bits, 0, ABS_CNT);
+	has_switches = bit_find(sw_bits, 0, SW_CNT);
 	has_mt = bit_find(abs_bits, ABS_MT_SLOT, ABS_CNT);
 
 	if (has_abs_axes) {
@@ -443,6 +455,8 @@ found_values:
 		input_type = IT_KEYBOARD;
 	else if (bit_is_set(prp_bits, INPUT_PROP_POINTER) || has_rel_axes || has_abs_axes || has_buttons)
 		input_type = IT_MOUSE;
+	else if (has_switches)
+		input_type = IT_SWITCH;
 
 	if (input_type == IT_NONE)
 		goto bail_out;
