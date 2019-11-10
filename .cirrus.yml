@@ -6,8 +6,9 @@ task:
   freebsd_instance:
     matrix:
       image_family: freebsd-13-0-snap
+      image_family: freebsd-12-1
       image_family: freebsd-12-0
-      image: freebsd-11-3-release-amd64
+      image-family: freebsd-11-3
   install_script:
     - sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
     - pkg upgrade -y
