@@ -498,18 +498,18 @@ set_parent(struct udev_device *ud)
 	snprintf(devname, len + 1, "%s", sysname);
 	unit = sysname + len;
 
-	snprintf(mib, sizeof(mib), "dev.%s.%s.%%desc", devname, unit);
+	snprintf(mib, sizeof(mib), "dev.%.17s.%.3s.%%desc", devname, unit);
 	len = sizeof(name);
 	if (sysctlbyname(mib, name, &len, NULL, 0) < 0)
 		return;
 	*(strchrnul(name, ',')) = '\0';	/* strip name */
 
-	snprintf(mib, sizeof(mib), "dev.%s.%s.%%pnpinfo", devname, unit);
+	snprintf(mib, sizeof(mib), "dev.%.14s.%.3s.%%pnpinfo", devname, unit);
 	len = sizeof(pnpinfo);
 	if (sysctlbyname(mib, pnpinfo, &len, NULL, 0) < 0)
 		return;
 
-	snprintf(mib, sizeof(mib), "dev.%s.%s.%%parent", devname, unit);
+	snprintf(mib, sizeof(mib), "dev.%.15s.%.3s.%%parent", devname, unit);
 	len = sizeof(parentname);
 	if (sysctlbyname(mib, parentname, &len, NULL, 0) < 0)
 		return;

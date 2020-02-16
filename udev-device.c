@@ -90,14 +90,14 @@ udev_device_new_from_devnum(struct udev *udev, char type, dev_t devnum)
 
 	TRC("(%d) -> %s", (int)devnum, devpath);
 	syspath = get_syspath_by_devpath(devpath);
-	strncpy(devbuf, devpath + 1, 32);
+	strncpy(devbuf, devpath + 1, 31);
 	devbufptr = devbuf;
 	devbufptr = strchrnul(devbufptr, '/');
 	while (*devbufptr != '\0') {
 		*devbufptr = '.';
 		devbufptr = strchrnul(devbufptr, '/');
 	}
-	snprintf(buf, 32, "%s.PCI_ID", devbuf);
+	snprintf(buf, 32, "%.24s.PCI_ID", devbuf);
 	buflen = 32;
 
 	sysctlbyname(buf, devbuf, &buflen, NULL, 0);
