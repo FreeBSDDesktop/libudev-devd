@@ -316,7 +316,7 @@ create_evdev_handler(struct udev_device *ud)
 	struct udev_device *parent;
 	const char *sysname, *unit;
 	char name[80], product[80], phys[80], mib[32];
-	int fd, input_type = IT_NONE;
+	int fd = -1, input_type = IT_NONE;
 	size_t len;
 	bool opened = false;
 	bool has_keys, has_buttons, has_lmr;
