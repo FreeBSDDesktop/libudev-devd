@@ -1,8 +1,8 @@
 project('libudev-devd', 'c',
-	version : '0.0.1',
+	version : '0.4',
 	license : 'BSD2CLAUSE',
 	default_options : [ 'c_std=c11' ],
-	meson_version : '>=0.40.0')
+	meson_version : '>=0.50.0')
 
 libudevdevd_version = meson.project_version().split('.')
 
