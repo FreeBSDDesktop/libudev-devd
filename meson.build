@@ -1,7 +1,10 @@
 project('libudev-devd', 'c',
 	version : '0.4',
 	license : 'BSD2CLAUSE',
-	default_options : [ 'c_std=c11' ],
+	default_options : [
+		'warning_level=1',
+		'c_std=c11',
+		'werror=true' ],
 	meson_version : '>=0.50.0')
 
 libudevdevd_version = meson.project_version().split('.')
@@ -14,7 +17,7 @@ dir_src         = join_paths(meson.source_root())
 
 # Compiler setup
 cc = meson.get_compiler('c')
-cflags = ['-Wall', '-Werror', '-fvisibility=hidden']
+cflags = ['-fvisibility=hidden']
 add_project_arguments(cflags, language: 'c')
 
 # config.h
