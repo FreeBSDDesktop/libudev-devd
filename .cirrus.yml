@@ -15,5 +15,5 @@ task:
     - pkg upgrade -y
     - pkg install -y evdev-proto meson ninja pkgconf
   script: 
-    - meson _build
+    - env CPPFLAGS='-isystem /usr/local/include' CFLAGS='-isystem /usr/local/include' meson _build
     - ninja -C _build
