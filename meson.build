@@ -2,6 +2,7 @@ project('libudev-devd', 'c',
 	version : '0.4',
 	license : 'BSD2CLAUSE',
 	default_options : [
+		'buildtype=debugoptimized',
 		'warning_level=1',
 		'c_std=c11',
 		'werror=true' ],
