@@ -91,12 +91,11 @@ lib_libudevdevd = shared_library('udev',
 	install : true
 )
 
-pkgconfig.generate(
-	filebase : 'libudev',
+pkgconfig.generate(lib_libudevdevd,
 	name : 'libudev',
+	url : 'https://github.com/FreeBSDDesktop/libudev-devd',
 	description : 'Library to access udev device information',
 	version : '199', # XXX - should be a proper version
-	libraries : lib_libudevdevd
 )
 
 # output files
