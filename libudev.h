@@ -33,6 +33,8 @@ char const *udev_device_get_property_value(struct udev_device *udev_device,
     char const *property);
 char const *udev_device_get_sysattr_value(
     struct udev_device *udev_device, const char *sysattr);
+int udev_device_set_sysattr_value(
+    struct udev_device *udev_device, const char *sysattr, const char *value);
 struct udev_list_entry * udev_device_get_properties_list_entry(
     struct udev_device *udev_device);
 struct udev_list_entry * udev_device_get_sysattr_list_entry(
