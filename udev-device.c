@@ -230,6 +230,22 @@ udev_device_get_sysattr_value(struct udev_device *ud, const char *sysattr)
 	return (NULL);
 }
 
+LIBUDEV_EXPORT int
+udev_device_set_sysattr_value(struct udev_device *ud, const char *sysattr, const char *value)
+{
+	struct udev_list_entry *entry;
+
+	udev_list_entry_foreach(entry, udev_list_entry_get_first(&ud->sysattr_list)) {
+		char const *key;
+
+		key = _udev_list_entry_get_name(entry);
+		if (key && strcmp(key, sysattr) == 0)
+			return -1;
+	}
+
+	return udev_list_insert(&ud->sysattr_list, sysattr, value);
+}
+
 LIBUDEV_EXPORT struct udev *
 udev_device_get_udev(struct udev_device *ud)
 {
