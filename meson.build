@@ -1,5 +1,5 @@
 project('libudev-devd', 'c',
-	version : '0.4.1',
+	version : '0.4.2',
 	license : 'BSD2CLAUSE',
 	default_options : [
 		'buildtype=debugoptimized',
