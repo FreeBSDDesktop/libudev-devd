@@ -442,8 +442,7 @@ found_values:
 			} else if (!(bit_is_set(rel_bits, REL_X) &&
 			             bit_is_set(rel_bits, REL_Y)) &&
 			             has_lmr) {
-				/* some touchscreens use BTN_LEFT rather than BTN_TOUCH */
-				input_type = IT_TOUCHSCREEN;
+				input_type = IT_MOUSE;
 				goto detected;
 			}
 		}
