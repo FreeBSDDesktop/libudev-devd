@@ -319,7 +319,7 @@ create_evdev_handler(struct udev_device *ud)
 	int fd = -1, input_type = IT_NONE;
 	size_t len;
 	bool opened = false;
-	bool has_keys, has_buttons, has_lmr;
+	bool has_keys, has_buttons, has_lmr, has_dpad;
 	bool has_rel_axes, has_abs_axes, has_mt, has_switches;
 	unsigned long key_bits[NLONGS(KEY_CNT)];
 	unsigned long rel_bits[NLONGS(REL_CNT)];
@@ -402,6 +402,7 @@ found_values:
 	has_keys = bit_find(key_bits, 0, BTN_MISC);
 	has_buttons = bit_find(key_bits, BTN_MISC, BTN_JOYSTICK);
 	has_lmr = bit_find(key_bits, BTN_LEFT, BTN_MIDDLE + 1);
+	has_dpad = bit_find(key_bits, BTN_DPAD_UP, BTN_DPAD_RIGHT + 1);
 	has_rel_axes = bit_find(rel_bits, 0, REL_CNT);
 	has_abs_axes = bit_find(abs_bits, 0, ABS_CNT);
 	has_switches = bit_find(sw_bits, 0, SW_CNT);
@@ -424,10 +425,13 @@ found_values:
 			    bit_is_set(key_bits, BTN_STYLUS2)) {
 				input_type = IT_TABLET;
 				goto detected;
-			} else if (bit_is_set(key_bits, BTN_SELECT) ||
-			           bit_is_set(key_bits, BTN_START) ||
-			           bit_is_set(key_bits, BTN_TL) ||
-			           bit_is_set(key_bits, BTN_TR)) {
+			} else if (bit_is_set(key_bits, BTN_SOUTH) ||
+			           has_dpad ||
+			           bit_is_set(abs_bits, ABS_HAT0X) ||
+			           bit_is_set(abs_bits, ABS_HAT0Y) ||
+			           bit_is_set(key_bits, BTN_THUMBL) ||
+			           bit_is_set(key_bits, BTN_THUMBR)) {
+			        /* Device is a gamepad */
 				input_type = IT_JOYSTICK;
 				goto detected;
 			} else if (bit_is_set(abs_bits, ABS_PRESSURE) ||
